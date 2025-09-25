@@ -1,0 +1,70 @@
+﻿name: Send Teams Notification
+description: Send an Adaptive Card to Microsoft Teams via webhook (PowerShell)
+branding:
+  color: blue
+  icon: message-circle
+inputs:
+  job_status:
+    description: Status of the calling job (success, failure, cancelled)
+    required: true
+  commit_messages:
+    description: 'JSON array for a FactSet (e.g., [{ "title": "SHA", "value": "Message" }])'
+    required: false
+    default: "[]"
+  environment:
+    description: Deployment environment name
+    required: false
+    default: ""
+  card_title:
+    description: Title for the adaptive card
+    required: false
+    default: "🔔 GitHub Deployment"
+  repository:
+    description: Repository name to display (defaults to GITHUB_REPOSITORY)
+    required: false
+    default: ""
+  actor:
+    description: Actor name to display (defaults to GITHUB_ACTOR)
+    required: false
+    default: ""
+  webhook_url:
+    description: Teams incoming webhook URL
+    required: true
+  run_id:
+    description: GitHub Actions run ID (for link to the run)
+    required: false
+    default: ""
+
+outputs:
+  sent:
+    description: Whether a POST to Teams was attempted/sent (false when dry_run)
+    value: ${{ steps.send.outputs.sent }}
+  status_code:
+    description: HTTP status code returned by Teams (200 on success)
+    value: ${{ steps.send.outputs.status_code }}
+  payload_bytes:
+    description: Size of the JSON payload in bytes
+    value: ${{ steps.send.outputs.payload_bytes }}
+  run_url:
+    description: URL to the workflow run (computed from context)
+    value: ${{ steps.send.outputs.run_url }}
+
+runs:
+  using: composite
+  steps:
+    - name: Send Adaptive Card via PowerShell
+      id: send
+      shell: pwsh
+      env:
+        INPUT_JOB_STATUS: ${{ inputs.job_status }}
+        INPUT_COMMIT_MESSAGES: ${{ inputs.commit_messages }}
+        INPUT_ENVIRONMENT: ${{ inputs.environment }}
+        INPUT_CARD_TITLE: ${{ inputs.card_title }}
+        INPUT_REPOSITORY: ${{ inputs.repository }}
+        INPUT_ACTOR: ${{ inputs.actor }}
+        INPUT_WEBHOOK_URL: ${{ inputs.webhook_url }}
+        GITHUB_REPO_FALLBACK: ${{ github.repository }}
+        GITHUB_ACTOR_FALLBACK: ${{ github.actor }}
+        GITHUB_RUN_ID: ${{ inputs.run_id }}
+      run: |
+        & "${{ github.action_path }}/scripts/send-teams.ps1"
