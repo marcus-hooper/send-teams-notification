@@ -67,4 +67,4 @@ runs:
         GITHUB_ACTOR_FALLBACK: ${{ github.actor }}
         GITHUB_RUN_ID: ${{ inputs.run_id }}
       run: |
-        & "${{ github.action_path }}/scripts/send-teams.ps1"
+        & "${{ github.action_path }}\scripts\send-teams.ps1"
