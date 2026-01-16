@@ -1,5 +1,8 @@
 # Send Teams Notification (Adaptive Cards)
 
+[![CI](https://github.com/marcus-hooper/send-teams-notification/actions/workflows/ci.yml/badge.svg)](https://github.com/marcus-hooper/send-teams-notification/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Composite GitHub Action that posts Adaptive Cards to Microsoft Teams via Incoming Webhooks. It includes:
 - Status styling (success/failure/warning) with emoji
 - Repository, actor, optional environment facts
@@ -18,7 +21,7 @@ jobs:
     steps:
       - name: Send Teams notification
         if: ${{ always() }}
-        uses: owner/repo@v1
+        uses: marcus-hooper/send-teams-notification@main
         with:
           job_status: ${{ job.status }}
           webhook_url: ${{ secrets.TEAMS_WEBHOOK_URL }}
@@ -29,7 +32,7 @@ With environment and custom title:
 ```yaml
 - name: Send Teams notification
   if: ${{ always() }}
-  uses: owner/repo@v1
+  uses: marcus-hooper/send-teams-notification@main
   with:
     job_status: ${{ job.status }}
     environment: "production"
@@ -37,25 +40,44 @@ With environment and custom title:
     webhook_url: ${{ secrets.TEAMS_WEBHOOK_URL }}
 ```
 
+With commit messages (collapsible section in card):
+
+```yaml
+- name: Get recent commits
+  id: commits
+  run: |
+    COMMITS=$(git log --pretty=format:'{"title":"%h","value":"[%s](https://github.com/${{ github.repository }}/commit/%H)"}' -3 | jq -s '.')
+    echo "json=$COMMITS" >> $GITHUB_OUTPUT
+
+- name: Send Teams notification
+  if: ${{ always() }}
+  uses: marcus-hooper/send-teams-notification@main
+  with:
+    job_status: ${{ job.status }}
+    commit_messages: ${{ steps.commits.outputs.json }}
+    webhook_url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+```
+
 ## Inputs
 
-- job_status (required): success, failure, or cancelled
-- webhook_url (required): Teams Incoming Webhook URL (store in secrets)
-- commit_messages (optional): JSON array for a FactSet, e.g. [{"title":"SHA","value":"Message"}]
-- environment (optional): Deployment environment label
-- card_title (optional): Title for the card (default: "🔔 GitHub Deployment")
-- repository (optional): Overrides repo shown (defaults to github.repository)
-- actor (optional): Overrides actor shown (defaults to github.actor)
-- run_id (optional): Explicit run id (defaults from context if omitted)
+| Input | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `job_status` | Yes | | Status of the job: `success`, `failure`, or `cancelled` |
+| `webhook_url` | Yes | | Teams Incoming Webhook URL (store in secrets) |
+| `commit_messages` | No | `[]` | JSON array for FactSet, e.g. `[{"title":"SHA","value":"Message"}]` |
+| `environment` | No | | Deployment environment label |
+| `card_title` | No | `🔔 GitHub Deployment` | Title for the card |
+| `repository` | No | `github.repository` | Repository name to display |
+| `actor` | No | `github.actor` | Actor name to display |
+| `run_id` | No | `github.run_id` | Workflow run ID for the "View Run" link |
 
 ## Outputs
 
-- sent: Whether a POST to Teams was attempted
-- status_code: HTTP status code from Teams (200 on success)
-- payload_bytes: Size of the JSON payload in bytes
-- run_url: Link to the workflow run
-
-Note: If an output is empty, ensure you’re on the latest version of the action. Outputs are produced by the PowerShell script.
+| Output | Description |
+|--------|-------------|
+| `sent` | Whether a POST to Teams was attempted |
+| `payload_bytes` | Size of the JSON payload in bytes |
+| `run_url` | Link to the workflow run |
 
 ## Security
 

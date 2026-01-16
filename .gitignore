@@ -1,0 +1,22 @@
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor/IDE
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# PowerShell
+*.ps1xml
+PSScriptAnalyzerResults.txt
+TestResults.xml
+
+# Local testing
+.env
+*.local.ps1
+
+# Claude Code
+CLAUDE.local.md

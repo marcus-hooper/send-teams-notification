@@ -37,11 +37,8 @@ inputs:
 
 outputs:
   sent:
-    description: Whether a POST to Teams was attempted/sent (false when dry_run)
+    description: Whether a POST to Teams was attempted/sent
     value: ${{ steps.send.outputs.sent }}
-  status_code:
-    description: HTTP status code returned by Teams (200 on success)
-    value: ${{ steps.send.outputs.status_code }}
   payload_bytes:
     description: Size of the JSON payload in bytes
     value: ${{ steps.send.outputs.payload_bytes }}
@@ -65,6 +62,6 @@ runs:
         INPUT_WEBHOOK_URL: ${{ inputs.webhook_url }}
         GITHUB_REPO_FALLBACK: ${{ github.repository }}
         GITHUB_ACTOR_FALLBACK: ${{ github.actor }}
-        GITHUB_RUN_ID: ${{ inputs.run_id }}
+        GITHUB_RUN_ID: ${{ inputs.run_id || github.run_id }}
       run: |
         & "${{ github.action_path }}\scripts\send-teams.ps1"
