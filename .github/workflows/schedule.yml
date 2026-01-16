@@ -1,0 +1,147 @@
+name: Scheduled Health Check
+
+on:
+  schedule:
+    # Run weekly on Monday at 6:00 UTC
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+    # Allow manual trigger for debugging
+
+jobs:
+  health-check:
+    name: Module Health Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify module loads
+        shell: pwsh
+        run: |
+          $modulePath = Join-Path $PWD 'scripts/Send-TeamsNotification.psm1'
+          Import-Module $modulePath -Force -ErrorAction Stop
+          Write-Host "Module loaded successfully from: $modulePath"
+
+      - name: Verify exported functions
+        shell: pwsh
+        run: |
+          $modulePath = Join-Path $PWD 'scripts/Send-TeamsNotification.psm1'
+          Import-Module $modulePath -Force
+
+          $expectedFunctions = @(
+            'Get-StatusStyling'
+            'ConvertTo-CommitFact'
+            'Build-FactsArray'
+            'Build-AdaptiveCardBody'
+            'New-TeamsPayload'
+            'Send-TeamsNotification'
+          )
+
+          $exportedFunctions = (Get-Module Send-TeamsNotification).ExportedFunctions.Keys
+
+          $missing = $expectedFunctions | Where-Object { $_ -notin $exportedFunctions }
+          if ($missing) {
+            Write-Error "Missing exported functions: $($missing -join ', ')"
+            exit 1
+          }
+
+          Write-Host "All expected functions are exported:"
+          $expectedFunctions | ForEach-Object { Write-Host "  - $_" }
+
+      - name: Test card generation (dry run)
+        shell: pwsh
+        run: |
+          $modulePath = Join-Path $PWD 'scripts/Send-TeamsNotification.psm1'
+          Import-Module $modulePath -Force
+
+          # Test Get-StatusStyling
+          $styling = Get-StatusStyling -Status 'success'
+          if (-not $styling.AccentColor -or -not $styling.Style -or -not $styling.Emoji) {
+            Write-Error "Get-StatusStyling returned incomplete data"
+            exit 1
+          }
+          Write-Host "Get-StatusStyling: OK"
+
+          # Test Build-FactsArray
+          $facts = Build-FactsArray -Repository 'owner/repo' -Actor 'testuser' -Environment 'production'
+          if ($facts.Count -lt 2) {
+            Write-Error "Build-FactsArray returned insufficient facts"
+            exit 1
+          }
+          Write-Host "Build-FactsArray: OK"
+
+          # Test Build-AdaptiveCardBody
+          $cardBody = Build-AdaptiveCardBody `
+            -Title 'Test Deployment' `
+            -Status 'success' `
+            -Styling $styling `
+            -Facts $facts `
+            -RunUrl 'https://github.com/owner/repo/actions/runs/123'
+
+          if ($cardBody.Count -lt 3) {
+            Write-Error "Build-AdaptiveCardBody returned insufficient elements"
+            exit 1
+          }
+          Write-Host "Build-AdaptiveCardBody: OK"
+
+          # Test New-TeamsPayload
+          $payload = New-TeamsPayload -CardBody $cardBody
+          if (-not $payload.type -or -not $payload.attachments) {
+            Write-Error "New-TeamsPayload returned incomplete payload"
+            exit 1
+          }
+          Write-Host "New-TeamsPayload: OK"
+
+      - name: Validate JSON structure
+        shell: pwsh
+        run: |
+          $modulePath = Join-Path $PWD 'scripts/Send-TeamsNotification.psm1'
+          Import-Module $modulePath -Force
+
+          $styling = Get-StatusStyling -Status 'failure'
+          $facts = Build-FactsArray -Repository 'test/repo' -Actor 'user'
+          $commitFacts = @(
+            @{ title = 'abc1234'; value = 'Test commit message' }
+          )
+
+          $cardBody = Build-AdaptiveCardBody `
+            -Title 'GitHub Deployment' `
+            -Status 'failure' `
+            -Styling $styling `
+            -Facts $facts `
+            -CommitFacts $commitFacts `
+            -RunUrl 'https://github.com/test/repo/actions/runs/456'
+
+          $payload = New-TeamsPayload -CardBody $cardBody
+          $json = $payload | ConvertTo-Json -Depth 30
+
+          # Verify JSON is valid
+          $parsed = $json | ConvertFrom-Json
+          if (-not $parsed) {
+            Write-Error "Generated JSON is invalid"
+            exit 1
+          }
+
+          # Verify Adaptive Card structure
+          $card = $parsed.attachments[0].content
+          if ($card.type -ne 'AdaptiveCard') {
+            Write-Error "Invalid card type: $($card.type)"
+            exit 1
+          }
+          if ($card.version -ne '1.5') {
+            Write-Error "Invalid card version: $($card.version)"
+            exit 1
+          }
+
+          Write-Host "JSON structure is valid"
+          Write-Host "Payload size: $($json.Length) characters"
+
+      - name: Run Pester tests
+        shell: pwsh
+        run: |
+          $config = New-PesterConfiguration
+          $config.Run.Path = './tests'
+          $config.Output.Verbosity = 'Detailed'
+          $config.Run.Exit = $true
+          Invoke-Pester -Configuration $config

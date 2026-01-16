@@ -1,6 +1,7 @@
 # Send Teams Notification (Adaptive Cards)
 
 [![CI](https://github.com/marcus-hooper/send-teams-notification/actions/workflows/ci.yml/badge.svg)](https://github.com/marcus-hooper/send-teams-notification/actions/workflows/ci.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/marcus-hooper/send-teams-notification/badge)](https://securityscorecards.dev/viewer/?uri=github.com/marcus-hooper/send-teams-notification)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Composite GitHub Action that posts Adaptive Cards to Microsoft Teams via Incoming Webhooks. It includes:

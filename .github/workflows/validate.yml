@@ -1,0 +1,95 @@
+name: Validate Action
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "action.yml"
+      - ".github/workflows/validate.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "action.yml"
+      - ".github/workflows/validate.yml"
+
+jobs:
+  validate-action:
+    name: Validate action.yml
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate YAML syntax
+        run: |
+          echo "Validating YAML syntax..."
+          python3 -c "import yaml; yaml.safe_load(open('action.yml'))"
+          echo "YAML syntax is valid"
+
+      - name: Install action-validator
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -sL https://github.com/mpalmer/action-validator/releases/latest/download/action-validator_linux_amd64 \
+            -o "$HOME/.local/bin/action-validator"
+          chmod +x "$HOME/.local/bin/action-validator"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Validate action metadata
+        run: |
+          echo "Validating action.yml against GitHub Action schema..."
+          action-validator action.yml
+          echo "Action metadata is valid"
+
+      - name: Check required fields
+        run: |
+          echo "Checking required fields..."
+
+          # Check name
+          if ! grep -q "^name:" action.yml; then
+            echo "::error::Missing required field: name"
+            exit 1
+          fi
+
+          # Check description
+          if ! grep -q "^description:" action.yml; then
+            echo "::error::Missing required field: description"
+            exit 1
+          fi
+
+          # Check runs
+          if ! grep -q "^runs:" action.yml; then
+            echo "::error::Missing required field: runs"
+            exit 1
+          fi
+
+          echo "All required fields present"
+
+      - name: Validate branding (if present)
+        run: |
+          if grep -q "^branding:" action.yml; then
+            echo "Checking branding configuration..."
+
+            # Valid icons from GitHub docs
+            VALID_ICONS="activity|airplay|alert-circle|alert-octagon|alert-triangle|align-center|align-justify|align-left|align-right|anchor|aperture|archive|arrow-down-circle|arrow-down-left|arrow-down-right|arrow-down|arrow-left-circle|arrow-left|arrow-right-circle|arrow-right|arrow-up-circle|arrow-up-left|arrow-up-right|arrow-up|at-sign|award|bar-chart-2|bar-chart|battery-charging|battery|bell-off|bell|bluetooth|bold|book-open|book|bookmark|box|briefcase|calendar|camera-off|camera|cast|check-circle|check-square|check|chevron-down|chevron-left|chevron-right|chevron-up|chevrons-down|chevrons-left|chevrons-right|chevrons-up|circle|clipboard|clock|cloud-drizzle|cloud-lightning|cloud-off|cloud-rain|cloud-snow|cloud|code|command|compass|copy|corner-down-left|corner-down-right|corner-left-down|corner-left-up|corner-right-down|corner-right-up|corner-up-left|corner-up-right|cpu|credit-card|crop|crosshair|database|delete|disc|dollar-sign|download-cloud|download|droplet|edit-2|edit-3|edit|external-link|eye-off|eye|fast-forward|feather|file-minus|file-plus|file-text|file|film|filter|flag|folder-minus|folder-plus|folder|gift|git-branch|git-commit|git-merge|git-pull-request|globe|grid|hard-drive|hash|headphones|heart|help-circle|home|image|inbox|info|italic|layers|layout|life-buoy|link-2|link|list|loader|lock|log-in|log-out|mail|map-pin|map|maximize-2|maximize|menu|message-circle|message-square|mic-off|mic|minimize-2|minimize|minus-circle|minus-square|minus|monitor|moon|more-horizontal|more-vertical|move|music|navigation-2|navigation|octagon|package|paperclip|pause-circle|pause|percent|phone-call|phone-forwarded|phone-incoming|phone-missed|phone-off|phone-outgoing|phone|pie-chart|play-circle|play|plus-circle|plus-square|plus|pocket|power|printer|radio|refresh-ccw|refresh-cw|repeat|rewind|rotate-ccw|rotate-cw|rss|save|scissors|search|send|server|settings|share-2|share|shield-off|shield|shopping-bag|shopping-cart|shuffle|sidebar|skip-back|skip-forward|slash|sliders|smartphone|speaker|square|star|stop-circle|sun|sunrise|sunset|tablet|tag|target|terminal|thermometer|thumbs-down|thumbs-up|toggle-left|toggle-right|trash-2|trash|trending-down|trending-up|triangle|truck|tv|type|umbrella|underline|unlock|upload-cloud|upload|user-check|user-minus|user-plus|user-x|user|users|video-off|video|voicemail|volume-1|volume-2|volume-x|volume|watch|wifi-off|wifi|wind|x-circle|x-square|x|zap-off|zap|zoom-in|zoom-out"
+
+            # Valid colors from GitHub docs
+            VALID_COLORS="white|yellow|blue|green|orange|red|purple|gray-dark"
+
+            ICON=$(grep -A1 "^branding:" action.yml | grep "icon:" | sed 's/.*icon:\s*//' | tr -d ' ')
+            COLOR=$(grep -A2 "^branding:" action.yml | grep "color:" | sed 's/.*color:\s*//' | tr -d ' ')
+
+            if [ -n "$ICON" ] && ! echo "$ICON" | grep -qE "^($VALID_ICONS)$"; then
+              echo "::error::Invalid branding icon: $ICON"
+              exit 1
+            fi
+
+            if [ -n "$COLOR" ] && ! echo "$COLOR" | grep -qE "^($VALID_COLORS)$"; then
+              echo "::error::Invalid branding color: $COLOR"
+              exit 1
+            fi
+
+            echo "Branding configuration is valid (icon: $ICON, color: $COLOR)"
+          else
+            echo "No branding configuration found (optional)"
+          fi

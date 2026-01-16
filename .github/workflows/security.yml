@@ -1,0 +1,127 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run weekly on Wednesday at 6:00 UTC
+    - cron: "0 6 * * 3"
+
+permissions:
+  contents: read
+
+jobs:
+  # Scan dependencies for known vulnerabilities on PRs
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: always
+
+  # OSSF Scorecard for repository security best practices
+  scorecard:
+    name: OSSF Scorecard
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+
+    permissions:
+      contents: read
+      security-events: write
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Run Scorecard
+        uses: ossf/scorecard-action@v2.4.0
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: Upload Scorecard results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+
+  # Static analysis for PowerShell (complements PSScriptAnalyzer in CI)
+  script-security:
+    name: Script Security Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for hardcoded secrets
+        shell: pwsh
+        run: |
+          $patterns = @(
+            'password\s*=\s*[''"][^''"]+[''"]',
+            'api[_-]?key\s*=\s*[''"][^''"]+[''"]',
+            'secret\s*=\s*[''"][^''"]+[''"]',
+            'token\s*=\s*[''"][^''"]+[''"]'
+          )
+
+          $issues = @()
+          Get-ChildItem -Path ./scripts -Filter *.ps1 -Recurse | ForEach-Object {
+            $content = Get-Content $_.FullName -Raw
+            foreach ($pattern in $patterns) {
+              if ($content -match $pattern) {
+                $issues += "Potential secret in $($_.Name): matches pattern '$pattern'"
+              }
+            }
+          }
+
+          if ($issues.Count -gt 0) {
+            $issues | ForEach-Object { Write-Host "::warning::$_" }
+            Write-Host "::error::Found $($issues.Count) potential hardcoded secret(s)"
+            exit 1
+          }
+
+          Write-Host "No hardcoded secrets detected"
+
+      - name: Check for unsafe patterns
+        shell: pwsh
+        run: |
+          $unsafePatterns = @(
+            @{ Pattern = 'Invoke-Expression'; Description = 'Invoke-Expression can execute arbitrary code' },
+            @{ Pattern = '\| iex'; Description = 'Piping to iex can execute arbitrary code' },
+            @{ Pattern = '-Command\s+\$'; Description = 'Dynamic command execution' }
+          )
+
+          $issues = @()
+          Get-ChildItem -Path ./scripts -Filter *.ps1 -Recurse | ForEach-Object {
+            $content = Get-Content $_.FullName -Raw
+            foreach ($check in $unsafePatterns) {
+              if ($content -match $check.Pattern) {
+                $issues += "$($_.Name): $($check.Description)"
+              }
+            }
+          }
+
+          if ($issues.Count -gt 0) {
+            $issues | ForEach-Object { Write-Host "::warning::$_" }
+            # Warning only - some patterns may be intentional
+            Write-Host "Found $($issues.Count) potentially unsafe pattern(s) - review recommended"
+          } else {
+            Write-Host "No unsafe patterns detected"
+          }
