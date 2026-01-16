@@ -37,7 +37,7 @@ function Get-StatusStyling {
     }
 }
 
-function ConvertTo-CommitFacts {
+function ConvertTo-CommitFact {
     <#
     .SYNOPSIS
         Parses commit messages JSON, handling double-encoded strings.
@@ -166,7 +166,7 @@ function Build-AdaptiveCardBody {
             isVisible = $false
             items     = @(
                 @{ type = 'TextBlock'; weight = 'Bolder'; text = 'Recent commits:'; wrap = $true; separator = $true }
-                @{ type = 'Container'; items = $commitItems; spacing = 'Small' }
+                @{ type = 'Container'; items = @($commitItems); spacing = 'Small' }
             )
         }
 
@@ -217,7 +217,7 @@ function Send-TeamsNotification {
     .SYNOPSIS
         Sends an Adaptive Card notification to Microsoft Teams.
     #>
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory)]
         [string]$WebhookUrl,
@@ -250,7 +250,7 @@ function Send-TeamsNotification {
 
     $styling = Get-StatusStyling -Status $JobStatus
     $facts = Build-FactsArray -Repository $Repository -Actor $Actor -Environment $Environment
-    $commitFacts = ConvertTo-CommitFacts -CommitJson $CommitMessages
+    $commitFacts = ConvertTo-CommitFact -CommitJson $CommitMessages
     $runUrl = "https://github.com/$Repository/actions/runs/$RunId"
 
     $cardBody = Build-AdaptiveCardBody `
@@ -267,12 +267,14 @@ function Send-TeamsNotification {
     $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
     $bodyBytes = $utf8NoBom.GetBytes($json)
 
-    Write-Host "Sending Teams notification..."
-    $null = Invoke-RestMethod -Method Post -Uri $WebhookUrl -ContentType 'application/json; charset=utf-8' -Body $bodyBytes
-    Write-Host "✅ Teams notification sent successfully."
+    if ($PSCmdlet.ShouldProcess($WebhookUrl, 'Send Teams notification')) {
+        Write-Host "Sending Teams notification..."
+        $null = Invoke-RestMethod -Method Post -Uri $WebhookUrl -ContentType 'application/json; charset=utf-8' -Body $bodyBytes
+        Write-Host "✅ Teams notification sent successfully."
+    }
 
     return @{
-        Sent         = $true
+        Sent         = -not $WhatIfPreference
         PayloadBytes = $bodyBytes.Length
         RunUrl       = $runUrl
     }
@@ -280,7 +282,7 @@ function Send-TeamsNotification {
 
 Export-ModuleMember -Function @(
     'Get-StatusStyling'
-    'ConvertTo-CommitFacts'
+    'ConvertTo-CommitFact'
     'Build-FactsArray'
     'Build-AdaptiveCardBody'
     'New-TeamsPayload'

@@ -24,7 +24,6 @@ try {
     "sent=true" >> $env:GITHUB_OUTPUT
     "payload_bytes=$($result.PayloadBytes)" >> $env:GITHUB_OUTPUT
     "run_url=$($result.RunUrl)" >> $env:GITHUB_OUTPUT
-    "status_code=200" >> $env:GITHUB_OUTPUT
 }
 catch {
     $msg = "❌ Failed to send Teams notification. $($_.Exception.Message)"
@@ -36,7 +35,9 @@ catch {
             if ($respBody) { $msg += "`nResponse body:`n$respBody" }
         }
     }
-    catch { }
+    catch {
+            # Ignore errors when reading response body - best effort only
+        }
     Write-Error $msg
     throw
 }

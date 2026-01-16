@@ -43,34 +43,34 @@ Describe 'Get-StatusStyling' {
     }
 }
 
-Describe 'ConvertTo-CommitFacts' {
+Describe 'ConvertTo-CommitFact' {
     It 'returns null for null input' {
-        $result = ConvertTo-CommitFacts -CommitJson $null
+        $result = ConvertTo-CommitFact -CommitJson $null
 
         $result | Should -BeNullOrEmpty
     }
 
     It 'returns null for empty string' {
-        $result = ConvertTo-CommitFacts -CommitJson ''
+        $result = ConvertTo-CommitFact -CommitJson ''
 
         $result | Should -BeNullOrEmpty
     }
 
     It 'returns null for empty array string' {
-        $result = ConvertTo-CommitFacts -CommitJson '[]'
+        $result = ConvertTo-CommitFact -CommitJson '[]'
 
         $result | Should -BeNullOrEmpty
     }
 
     It 'returns null for whitespace' {
-        $result = ConvertTo-CommitFacts -CommitJson '   '
+        $result = ConvertTo-CommitFact -CommitJson '   '
 
         $result | Should -BeNullOrEmpty
     }
 
     It 'parses valid JSON array' {
         $json = '[{"title":"abc123","value":"Fix bug"}]'
-        $result = ConvertTo-CommitFacts -CommitJson $json
+        $result = ConvertTo-CommitFact -CommitJson $json
 
         @($result).Count | Should -Be 1
         $result[0].title | Should -Be 'abc123'
@@ -79,7 +79,7 @@ Describe 'ConvertTo-CommitFacts' {
 
     It 'parses multiple commits' {
         $json = '[{"title":"abc123","value":"First"},{"title":"def456","value":"Second"}]'
-        $result = ConvertTo-CommitFacts -CommitJson $json
+        $result = ConvertTo-CommitFact -CommitJson $json
 
         @($result).Count | Should -Be 2
     }
@@ -87,14 +87,14 @@ Describe 'ConvertTo-CommitFacts' {
     It 'handles double-encoded JSON' {
         $inner = '[{"title":"abc123","value":"Fix bug"}]'
         $doubleEncoded = $inner | ConvertTo-Json
-        $result = ConvertTo-CommitFacts -CommitJson $doubleEncoded
+        $result = ConvertTo-CommitFact -CommitJson $doubleEncoded
 
         @($result).Count | Should -Be 1
         $result[0].title | Should -Be 'abc123'
     }
 
     It 'returns null for invalid JSON' {
-        $result = ConvertTo-CommitFacts -CommitJson 'not valid json' -WarningAction SilentlyContinue
+        $result = ConvertTo-CommitFact -CommitJson 'not valid json' -WarningAction SilentlyContinue
 
         $result | Should -BeNullOrEmpty
     }
@@ -245,6 +245,26 @@ Describe 'Build-AdaptiveCardBody' {
         $commitsContainer = $result | Where-Object { $_.id -eq 'commitsSection' }
         $commitsContainer | Should -Not -BeNullOrEmpty
         $commitsContainer.isVisible | Should -Be $false
+    }
+
+    It 'handles single commit as array in JSON output' {
+        $params = @{
+            Title       = 'Test Title'
+            Status      = 'success'
+            Styling     = @{ Style = 'good'; Emoji = '✅'; AccentColor = '#107C10' }
+            Facts       = @(@{ title = 'Repo'; value = 'test' })
+            RunUrl      = 'https://github.com/owner/repo/actions/runs/123'
+            CommitFacts = @(@{ title = 'abc123'; value = 'Single commit' })
+        }
+
+        $result = Build-AdaptiveCardBody @params
+
+        $commitsContainer = $result | Where-Object { $_.id -eq 'commitsSection' }
+        $innerContainer = $commitsContainer.items | Where-Object { $_.type -eq 'Container' }
+
+        # Verify single commit serializes as array, not object
+        $json = $innerContainer | ConvertTo-Json -Depth 10
+        $json | Should -Match '"items":\s*\['
     }
 }
 
