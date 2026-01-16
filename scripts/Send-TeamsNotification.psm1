@@ -188,6 +188,8 @@ function New-TeamsPayload {
     .SYNOPSIS
         Creates the full Teams message payload with Adaptive Card attachment.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '',
+        Justification = 'Function only constructs a data structure, no system state is changed')]
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]

@@ -36,7 +36,7 @@ catch {
         }
     }
     catch {
-            # Ignore errors when reading response body - best effort only
+            Write-Debug "Could not read response body: $_"
         }
     Write-Error $msg
     throw
