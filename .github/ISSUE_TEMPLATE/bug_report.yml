@@ -1,0 +1,113 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+title: "[Bug]: "
+labels: ["type:bug", "priority:medium"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! Please fill out the information below to help us investigate.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear description of the bug
+      placeholder: What happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual Behavior
+      description: What actually happened
+    validations:
+      required: true
+
+  - type: textarea
+    id: workflow-configuration
+    attributes:
+      label: Workflow Configuration
+      description: Paste your workflow YAML here (redact secrets)
+      render: yaml
+      placeholder: |
+        - name: Notify Teams
+          uses: marcus-hooper/send-teams-notification@v1
+          with:
+            webhook_url: ${{ secrets.TEAMS_WEBHOOK }}
+            job_status: ${{ job.status }}
+    validations:
+      required: false
+
+  - type: dropdown
+    id: runner-os
+    attributes:
+      label: Runner OS
+      options:
+        - ubuntu-latest
+        - ubuntu-24.04
+        - ubuntu-22.04
+        - windows-latest
+        - windows-2022
+        - windows-2019
+        - macos-latest
+        - macos-14
+        - macos-13
+        - Other (specify in Additional Context)
+    validations:
+      required: true
+
+  - type: input
+    id: action-version
+    attributes:
+      label: Action Version
+      description: The version of the action you are using
+      placeholder: "@main, @v1, etc."
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Paste relevant logs here (redact sensitive info)
+      render: shell
+      placeholder: Expand the "Send Teams Notification" step and copy relevant output
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: webhook-verified
+    attributes:
+      label: Webhook Verification
+      options:
+        - label: Webhook URL is verified working (tested with manual POST or previously worked)
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Any other relevant information
+    validations:
+      required: false

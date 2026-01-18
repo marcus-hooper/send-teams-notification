@@ -3,17 +3,79 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/*.md'
+      - '.github/ISSUE_TEMPLATE/**'
+      - 'LICENSE'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/*.md'
+      - '.github/ISSUE_TEMPLATE/**'
+      - 'LICENSE'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
-  lint:
-    name: PSScriptAnalyzer
+  validate-changelog:
+    name: Validate CHANGELOG
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            github.com:443
+
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate CHANGELOG format
+        run: |
+          echo "Validating CHANGELOG.md format..."
+          if [[ ! -f CHANGELOG.md ]]; then
+            echo "::error::CHANGELOG.md not found"
+            exit 1
+          fi
+          if ! grep -qE "^## \[Unreleased\]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md missing '## [Unreleased]' section"
+            exit 1
+          fi
+          echo "CHANGELOG.md format valid"
+
+  lint-and-format:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            github.com:443
+
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
 
       - name: Run PSScriptAnalyzer
         shell: pwsh
@@ -26,13 +88,47 @@ jobs:
           }
           Write-Host "No issues found"
 
+      - name: Check PowerShell formatting
+        shell: pwsh
+        run: |
+          $hasErrors = $false
+          Get-ChildItem -Path ./scripts -Include *.ps1, *.psm1 -Recurse | ForEach-Object {
+            $original = Get-Content -Path $_.FullName -Raw
+            $formatted = Invoke-Formatter -ScriptDefinition $original
+            if ($original -ne $formatted) {
+              Write-Host "::error file=$($_.FullName)::File is not properly formatted"
+              $hasErrors = $true
+            }
+          }
+          if ($hasErrors) {
+            Write-Error "One or more files are not properly formatted. Run 'Invoke-Formatter' to fix."
+            exit 1
+          }
+          Write-Host "All files are properly formatted"
+
   test:
     name: Run Pester Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            cli.codecov.io:443
+            codecov.io:443
+            github.com:443
+            ingest.codecov.io:443
+            storage.googleapis.com:443
+            uploader.codecov.io:443
+
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
 
       - name: Run Pester tests with coverage
         shell: pwsh
@@ -57,11 +153,178 @@ jobs:
             Write-Host "Code Coverage: $percent% ($covered/$total commands)"
           }
 
+          if ($result.FailedCount -gt 0) {
+            exit 1
+          }
+
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: always()
         with:
           name: test-results
           path: |
             test-results.xml
             coverage.xml
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        with:
+          files: coverage.xml
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  integration-test:
+    name: Integration Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            github.com:443
+
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate action.yml
+        shell: pwsh
+        run: |
+          if (-not (Test-Path './action.yml')) {
+            Write-Error "action.yml not found"
+            exit 1
+          }
+          Write-Host "action.yml exists"
+
+          # Validate YAML syntax by parsing it
+          $content = Get-Content './action.yml' -Raw
+          try {
+            $null = ConvertFrom-Yaml $content -ErrorAction Stop
+            Write-Host "action.yml is valid YAML"
+          } catch {
+            # ConvertFrom-Yaml may not be available, use yq or basic validation
+            Write-Host "YAML module not available, performing basic validation"
+            if ($content -match 'name:' -and $content -match 'runs:' -and $content -match 'inputs:') {
+              Write-Host "action.yml contains required fields"
+            } else {
+              Write-Error "action.yml missing required fields"
+              exit 1
+            }
+          }
+
+      - name: Verify module can be imported
+        shell: pwsh
+        run: |
+          Import-Module './scripts/Send-TeamsNotification.psm1' -Force
+          $commands = Get-Command -Module Send-TeamsNotification
+          Write-Host "Exported commands: $($commands.Name -join ', ')"
+          if ($commands.Count -eq 0) {
+            Write-Error "No commands exported from module"
+            exit 1
+          }
+          Write-Host "Module imported successfully with $($commands.Count) command(s)"
+
+      - name: Test action with invalid webhook (validation check)
+        id: test-validation
+        uses: ./
+        continue-on-error: true
+        with:
+          job_status: success
+          webhook_url: "not-a-valid-url"
+
+      - name: Verify validation rejected invalid URL
+        shell: pwsh
+        run: |
+          if ('${{ steps.test-validation.outcome }}' -eq 'success') {
+            Write-Error "Action should have failed with invalid webhook URL"
+            exit 1
+          }
+          Write-Host "Action correctly rejected invalid webhook URL"
+
+  cross-platform-test:
+    name: Cross-Platform Test (${{ matrix.os }})
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+
+    steps:
+      - name: Harden Runner
+        if: runner.os == 'Linux'
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            github.com:443
+
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Verify PowerShell 7 available
+        shell: pwsh
+        run: |
+          Write-Host "PowerShell Version: $($PSVersionTable.PSVersion)"
+          if ($PSVersionTable.PSVersion.Major -lt 7) {
+            Write-Error "PowerShell 7+ required"
+            exit 1
+          }
+
+      - name: Import and test module
+        shell: pwsh
+        run: |
+          Import-Module './scripts/Send-TeamsNotification.psm1' -Force
+
+          # Test Get-StatusStyling function
+          $styling = Get-StatusStyling -Status 'success'
+          if ($styling.Color -ne '#107C10') {
+            Write-Error "Get-StatusStyling returned unexpected color"
+            exit 1
+          }
+          Write-Host "Get-StatusStyling works correctly"
+
+          # Test Build-AdaptiveCardBody function
+          $body = Build-AdaptiveCardBody -CardTitle 'Test' -StatusStyle 'Good' -StatusText 'Success' -StatusEmoji '✅' -Repository 'owner/repo' -Actor 'testuser'
+          if (-not $body) {
+            Write-Error "Build-AdaptiveCardBody returned null"
+            exit 1
+          }
+          Write-Host "Build-AdaptiveCardBody works correctly"
+
+          Write-Host "All cross-platform tests passed on $($PSVersionTable.OS)"
+
+  ci-status:
+    name: CI Status
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [validate-changelog, lint-and-format, test, integration-test, cross-platform-test]
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: block
+          allowed-endpoints: ""
+
+      - name: Check CI status
+        run: |
+          if [[ "${{ needs.validate-changelog.result }}" != "success" ]] || \
+             [[ "${{ needs.lint-and-format.result }}" != "success" ]] || \
+             [[ "${{ needs.test.result }}" != "success" ]] || \
+             [[ "${{ needs.integration-test.result }}" != "success" ]] || \
+             [[ "${{ needs.cross-platform-test.result }}" != "success" ]]; then
+            echo "::error::One or more CI jobs failed"
+            exit 1
+          fi
+          echo "All CI jobs passed successfully"

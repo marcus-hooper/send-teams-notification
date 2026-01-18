@@ -1,22 +1,33 @@
 name: Security
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/*.md'
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/*.md'
   schedule:
-    # Run weekly on Wednesday at 6:00 UTC
-    - cron: "0 6 * * 3"
+    - cron: '0 6 * * 3' # Weekly on Wednesday 6am UTC
 
-permissions:
-  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
 
 jobs:
   # Scan dependencies for known vulnerabilities on PRs
   dependency-review:
     name: Dependency Review
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     if: github.event_name == 'pull_request'
 
     permissions:
@@ -24,52 +35,42 @@ jobs:
       pull-requests: write
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Dependency Review
-        uses: actions/dependency-review-action@v4
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
-          fail-on-severity: high
-          comment-summary-in-pr: always
+          egress-policy: audit
 
-  # OSSF Scorecard for repository security best practices
-  scorecard:
-    name: OSSF Scorecard
-    runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
-
-    permissions:
-      contents: read
-      security-events: write
-      id-token: write
-
-    steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           persist-credentials: false
 
-      - name: Run Scorecard
-        uses: ossf/scorecard-action@v2.4.3
+      - name: Dependency Review
+        uses: actions/dependency-review-action@3c4e3dcb1aa7874d2c16be7d79418e9b7efd6261 # v4.7.1
         with:
-          results_file: results.sarif
-          results_format: sarif
-          publish_results: true
-
-      - name: Upload Scorecard results
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: results.sarif
+          config-file: .github/dependency-review-config.yml
+          fail-on-severity: high
+          comment-summary-in-pr: always
 
   # Static analysis for PowerShell (complements PSScriptAnalyzer in CI)
   script-security:
     name: Script Security Check
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
 
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
 
       - name: Check for hardcoded secrets
         shell: pwsh
@@ -82,7 +83,7 @@ jobs:
           )
 
           $issues = @()
-          Get-ChildItem -Path ./scripts -Filter *.ps1 -Recurse | ForEach-Object {
+          Get-ChildItem -Path ./scripts -Include *.ps1,*.psm1 -Recurse | ForEach-Object {
             $content = Get-Content $_.FullName -Raw
             foreach ($pattern in $patterns) {
               if ($content -match $pattern) {
@@ -109,7 +110,7 @@ jobs:
           )
 
           $issues = @()
-          Get-ChildItem -Path ./scripts -Filter *.ps1 -Recurse | ForEach-Object {
+          Get-ChildItem -Path ./scripts -Include *.ps1,*.psm1 -Recurse | ForEach-Object {
             $content = Get-Content $_.FullName -Raw
             foreach ($check in $unsafePatterns) {
               if ($content -match $check.Pattern) {

@@ -1,6 +1,7 @@
 # OS files
 .DS_Store
 Thumbs.db
+ehthumbs.db
 Desktop.ini
 
 # Editor/IDE
@@ -12,11 +13,19 @@ Desktop.ini
 # PowerShell
 *.ps1xml
 PSScriptAnalyzerResults.txt
+
+# Test results
 TestResults.xml
+TestResults/
+coverage.xml
 
 # Local testing
 .env
 *.local.ps1
 
+# Logs
+*.log
+
 # Claude Code
+.claude/
 CLAUDE.local.md

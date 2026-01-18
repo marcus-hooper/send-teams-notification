@@ -7,14 +7,51 @@ on:
   workflow_dispatch:
     # Allow manual trigger for debugging
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
 jobs:
   health-check:
     name: Module Health Check
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
 
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            www.powershellgallery.com:443
+            psg-prod-eastus.azureedge.net:443
+
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate action.yml
+        shell: pwsh
+        run: |
+          $actionFile = Join-Path $PWD 'action.yml'
+          if (-not (Test-Path $actionFile)) {
+            Write-Error "action.yml not found"
+            exit 1
+          }
+          $content = Get-Content $actionFile -Raw
+          if ([string]::IsNullOrWhiteSpace($content)) {
+            Write-Error "action.yml is empty"
+            exit 1
+          }
+          Write-Host "action.yml is valid ($($content.Length) characters)"
 
       - name: Verify module loads
         shell: pwsh
@@ -137,6 +174,18 @@ jobs:
           Write-Host "JSON structure is valid"
           Write-Host "Payload size: $($json.Length) characters"
 
+      - name: Run PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
+          $results = Invoke-ScriptAnalyzer -Path ./scripts -Recurse -Settings PSGallery
+          $results | Format-Table -AutoSize
+          if ($results) {
+            Write-Error "PSScriptAnalyzer found $($results.Count) issue(s)"
+            exit 1
+          }
+          Write-Host "No issues found"
+
       - name: Run Pester tests
         shell: pwsh
         run: |
@@ -144,4 +193,16 @@ jobs:
           $config.Run.Path = './tests'
           $config.Output.Verbosity = 'Detailed'
           $config.Run.Exit = $true
+          $config.TestResult.Enabled = $true
+          $config.TestResult.OutputPath = 'test-results.xml'
+          $config.TestResult.OutputFormat = 'NUnitXml'
           Invoke-Pester -Configuration $config
+
+      - name: Upload test results
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: always()
+        with:
+          name: health-check-test-results
+          path: test-results.xml
+          if-no-files-found: ignore
+          retention-days: 14

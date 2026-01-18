@@ -1,0 +1,117 @@
+# GitHub Labels Configuration
+# Apply with: npx github-label-sync --labels .github/labels.yml owner/repo
+# Or use GitHub CLI: gh label create "name" --description "desc" --color "color"
+
+# Issue Types
+- name: "type:bug"
+  description: "Something isn't working"
+  color: "D73A4A"
+
+- name: "type:feature"
+  description: "New feature request"
+  color: "0E8A16"
+
+- name: "type:docs"
+  description: "Documentation improvements"
+  color: "FEF2C0"
+
+- name: "type:chore"
+  description: "Maintenance, refactoring, dependencies"
+  color: "BFD4F2"
+
+- name: "type:question"
+  description: "Further information is requested"
+  color: "D876E3"
+
+- name: "type:test"
+  description: "Test improvements or additions"
+  color: "BFD4F2"
+
+# Priority
+- name: "priority:critical"
+  description: "Critical - blocks release"
+  color: "B60205"
+
+- name: "priority:high"
+  description: "High priority"
+  color: "D93F0B"
+
+- name: "priority:medium"
+  description: "Normal priority"
+  color: "FBCA04"
+
+- name: "priority:low"
+  description: "Low priority - nice to have"
+  color: "0E8A16"
+
+# Status
+- name: "status:blocked"
+  description: "Blocked by external dependency"
+  color: "B60205"
+
+- name: "status:needs-design"
+  description: "Needs design decision before implementation"
+  color: "FBCA04"
+
+- name: "status:needs-info"
+  description: "Needs more information from reporter"
+  color: "FBCA04"
+
+- name: "status:wontfix"
+  description: "Will not be fixed"
+  color: "FFFFFF"
+
+- name: "status:duplicate"
+  description: "Duplicate of another issue"
+  color: "CFD3D7"
+
+- name: "status:in-progress"
+  description: "Currently being worked on"
+  color: "0E8A16"
+
+# Areas
+- name: "area:powershell"
+  description: "PowerShell scripts and module"
+  color: "7057FF"
+
+- name: "area:action"
+  description: "GitHub Action definition (action.yml)"
+  color: "7057FF"
+
+- name: "area:ci"
+  description: "CI/CD pipeline and automation"
+  color: "7057FF"
+
+# Special
+- name: "good first issue"
+  description: "Good for newcomers"
+  color: "7057FF"
+
+- name: "help wanted"
+  description: "Extra attention is needed"
+  color: "008672"
+
+- name: "breaking change"
+  description: "Introduces breaking changes"
+  color: "B60205"
+
+- name: "security"
+  description: "Security-related issue"
+  color: "D73A4A"
+
+# Dependabot
+- name: "dependencies"
+  description: "Pull requests that update a dependency file"
+  color: "0366D6"
+
+- name: "github-actions"
+  description: "GitHub Actions workflow updates"
+  color: "2088FF"
+
+- name: "major-update"
+  description: "Major version update requiring manual review"
+  color: "D73A4A"
+
+- name: "needs-review"
+  description: "PR needs manual review before merging"
+  color: "FBCA04"
