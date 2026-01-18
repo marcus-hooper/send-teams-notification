@@ -86,6 +86,6 @@ jobs:
           mv results.tmp results.sarif
 
       - name: Upload to Code Scanning
-        uses: github/codeql-action/upload-sarif@7434149006143a4d75b82a2f411ef15b03ccc2d7 # v4
+        uses: github/codeql-action/upload-sarif@fb650c22f965a3eff7e20c5535e51a256dd16bf1 # v4
         with:
           sarif_file: results.sarif
