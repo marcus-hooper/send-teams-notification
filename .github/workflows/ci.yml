@@ -288,14 +288,15 @@ jobs:
 
           # Test Get-StatusStyling function
           $styling = Get-StatusStyling -Status 'success'
-          if ($styling.Color -ne '#107C10') {
-            Write-Error "Get-StatusStyling returned unexpected color"
+          if ($styling.AccentColor -ne '#107C10') {
+            Write-Error "Get-StatusStyling returned unexpected AccentColor: $($styling.AccentColor)"
             exit 1
           }
           Write-Host "Get-StatusStyling works correctly"
 
           # Test Build-AdaptiveCardBody function
-          $body = Build-AdaptiveCardBody -CardTitle 'Test' -StatusStyle 'Good' -StatusText 'Success' -StatusEmoji '✅' -Repository 'owner/repo' -Actor 'testuser'
+          $facts = @(@{ title = 'Repository'; value = 'owner/repo' })
+          $body = Build-AdaptiveCardBody -Title 'Test' -Status 'Success' -Styling $styling -Facts $facts -RunUrl 'https://github.com/owner/repo/actions/runs/123'
           if (-not $body) {
             Write-Error "Build-AdaptiveCardBody returned null"
             exit 1
