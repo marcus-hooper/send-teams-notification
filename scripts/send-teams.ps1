@@ -36,8 +36,8 @@ catch {
         }
     }
     catch {
-            Write-Debug "Could not read response body: $_"
-        }
+        Write-Debug "Could not read response body: $_"
+    }
     Write-Error $msg
     throw
 }
