@@ -5,10 +5,8 @@ on:
   push:
     branches: [main]
     paths-ignore: &paths-ignore
-      - 'README.md'
-      - 'SECURITY.md'
+      - '**.md'
       - 'docs/**'
-      - '.github/*.md'
       - '.github/ISSUE_TEMPLATE/**'
       - 'LICENSE'
   pull_request:
@@ -220,12 +218,21 @@ jobs:
 
           # Validate required fields for composite action
           if ! yq eval '.name' action.yml > /dev/null 2>&1 || \
-             ! yq eval '.runs.using' action.yml > /dev/null 2>&1 || \
-             ! yq eval '.inputs' action.yml > /dev/null 2>&1; then
-            echo "::error::action.yml missing required fields (name, runs.using, or inputs)"
+             [[ "$(yq eval '.name' action.yml)" == "null" ]]; then
+            echo "::error::action.yml missing 'name' field"
             exit 1
           fi
-          echo "action.yml contains required fields"
+          if ! yq eval '.runs.using' action.yml > /dev/null 2>&1 || \
+             [[ "$(yq eval '.runs.using' action.yml)" != "composite" ]]; then
+            echo "::error::action.yml missing 'runs.using: composite'"
+            exit 1
+          fi
+          if ! yq eval '.inputs' action.yml > /dev/null 2>&1 || \
+             [[ "$(yq eval '.inputs' action.yml)" == "null" ]]; then
+            echo "::error::action.yml missing 'inputs' field"
+            exit 1
+          fi
+          echo "action.yml structure valid"
 
       - name: Verify module can be imported
         shell: pwsh
@@ -260,6 +267,7 @@ jobs:
     name: Cross-Platform Test (${{ matrix.os }})
     needs: [test]
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}

@@ -108,31 +108,31 @@
   color: "D73A4A"
 
 # Dependabot
-- name: "dependencies"
+- name: "deps:all"
   description: "Pull requests that update a dependency file"
   color: "0366D6"
 
-- name: "github-actions"
+- name: "deps:github-actions"
   description: "GitHub Actions workflow updates"
   color: "2088FF"
-
-- name: "major-update"
-  description: "Major version update requiring manual review"
-  color: "D73A4A"
-
-- name: "needs-review"
-  description: "PR needs manual review before merging"
-  color: "FBCA04"
 
 - name: "deps:powershell"
   description: "PowerShell module dependency updates"
   color: "012456"
 
+- name: "deps:major"
+  description: "Major version update requiring manual review"
+  color: "D73A4A"
+
 # Automated
-- name: "health-check-failure"
+- name: "status:needs-review"
+  description: "PR needs manual review before merging"
+  color: "FBCA04"
+
+- name: "status:health-check-failure"
   description: "Automated issue from failed scheduled health check"
   color: "D73A4A"
 
-- name: "stale"
+- name: "status:stale"
   description: "Issue or PR has been inactive"
   color: "CFD3D7"

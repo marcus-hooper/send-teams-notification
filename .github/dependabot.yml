@@ -11,18 +11,26 @@ updates:
     open-pull-requests-limit: 3
     rebase-strategy: "auto"
     groups:
+      # Security-related actions - prioritize these
       security-actions:
         patterns:
           - "ossf/*"
           - "github/codeql-action"
           - "step-security/*"
+        update-types:
+          - "minor"
+          - "patch"
+      # CI/CD actions
       ci-actions:
         patterns:
           - "actions/*"
           - "github/dependency-review-action"
+        update-types:
+          - "minor"
+          - "patch"
     labels:
-      - "dependencies"
-      - "github-actions"
+      - "deps:all"
+      - "deps:github-actions"
     commit-message:
       prefix: "chore(ci)"
       include: "scope"

@@ -8,7 +8,7 @@ body:
       value: |
         Thanks for suggesting a feature! Please fill out the form below.
 
-        **Before submitting**, please [search existing issues](https://github.com/marcus-hooper/send-teams-notification/issues?q=is%3Aissue+label%3Atype%3Afeature) to avoid duplicates.
+        **Before submitting**, please [search existing issues](../../issues?q=is%3Aissue+label%3Atype%3Afeature) to avoid duplicates.
 
   - type: textarea
     id: problem
@@ -40,7 +40,7 @@ body:
     id: area
     attributes:
       label: Area
-      description: Which part of the action does this affect?
+      description: Which part of Send Teams Notification does this affect?
       multiple: true
       options:
         - Adaptive Card content / formatting
@@ -48,6 +48,7 @@ body:
         - Action inputs / outputs
         - Status handling
         - Error handling / logging
+        - Performance
         - Documentation
         - CI / Workflows
         - Other

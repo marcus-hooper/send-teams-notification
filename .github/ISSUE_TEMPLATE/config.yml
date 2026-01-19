@@ -3,9 +3,12 @@ contact_links:
   - name: Security Vulnerability
     url: https://github.com/marcus-hooper/send-teams-notification/security/advisories/new
     about: Report security vulnerabilities privately (do not open public issues)
-  - name: Documentation
-    url: https://github.com/marcus-hooper/send-teams-notification#readme
-    about: Check the README for usage examples and troubleshooting
   - name: Search Existing Issues
     url: https://github.com/marcus-hooper/send-teams-notification/issues?q=is%3Aissue
     about: Check if your issue has already been reported
+  - name: Documentation
+    url: https://github.com/marcus-hooper/send-teams-notification#readme
+    about: Check the README for usage examples and troubleshooting
+  - name: Releases & Changelog
+    url: https://github.com/marcus-hooper/send-teams-notification/releases
+    about: Check if your issue was addressed in a recent release

@@ -28,6 +28,7 @@ jobs:
           allowed-endpoints: >
             api.github.com:443
             github.com:443
+            uploads.github.com:443
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -43,9 +44,9 @@ jobs:
           TAG="${{ github.event.release.tag_name }}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
-          # Validate semver format (v1.0.0 or 1.0.0)
-          if [[ ! "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Tag '$TAG' does not match semver format (e.g., v1.0.0)"
+          # Validate semver format (v1.0.0, 1.0.0, or v1.0.0-beta.1)
+          if [[ ! "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+            echo "::error::Tag '$TAG' does not match semver format (e.g., v1.0.0 or v1.0.0-beta.1)"
             exit 1
           fi
 
@@ -169,6 +170,48 @@ jobs:
           else
             echo "No changelog content to extract (section may be empty)"
           fi
+
+      - name: Generate and upload SBOM
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.version.outputs.tag }}"
+
+          # Generate SBOM using GitHub's dependency graph
+          gh api "repos/${{ github.repository }}/dependency-graph/sbom" \
+            --jq '.sbom' > sbom.spdx.json
+
+          # Upload SBOM to release
+          gh release upload "$TAG" sbom.spdx.json --clobber
+          echo "Uploaded SBOM to release $TAG"
+
+      - name: Verify SBOM upload
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.version.outputs.tag }}"
+
+          # Retry verification with backoff (handles eventual consistency)
+          MAX_ATTEMPTS=3
+          for ((i=1; i<=MAX_ATTEMPTS; i++)); do
+            if gh release view "$TAG" --json assets --jq '.assets[].name' | grep -q 'sbom.spdx.json'; then
+              echo "Verified SBOM was uploaded to release $TAG"
+              exit 0
+            fi
+
+            if [ "$i" -lt "$MAX_ATTEMPTS" ]; then
+              DELAY=$((2 ** (i - 1)))
+              echo "SBOM not found yet, retrying in ${DELAY}s..."
+              sleep "$DELAY"
+            fi
+          done
+
+          echo "::error::SBOM upload verification failed after $MAX_ATTEMPTS attempts"
+          exit 1
 
       - name: Write job summary
         shell: bash
