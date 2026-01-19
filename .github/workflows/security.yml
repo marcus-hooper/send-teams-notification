@@ -189,7 +189,8 @@ jobs:
           # Allow-list: file:pattern pairs for known-safe usages
           # Format: "relative/path/to/file.ps1:PatternToAllow"
           $allowList = @(
-            # Example: "scripts/Send-TeamsNotification.psm1:DownloadFile" - if legitimate download is needed
+            # This file contains pattern definitions that include the literal strings being searched for
+            ".github/workflows/security.yml:Invoke-Expression"
           )
 
           $issues = @()
