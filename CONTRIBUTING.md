@@ -12,9 +12,25 @@ Thank you for your interest in contributing to send-teams-notification!
 
 ### Clone and Test
 
+**For external contributors** (fork first):
+
+```powershell
+# Fork the repo on GitHub, then:
+git clone https://github.com/YOUR-USERNAME/send-teams-notification.git
+cd send-teams-notification
+git remote add upstream https://github.com/marcus-hooper/send-teams-notification.git
+```
+
+**For maintainers** (direct access):
+
 ```powershell
 git clone https://github.com/marcus-hooper/send-teams-notification.git
 cd send-teams-notification
+```
+
+**Verify setup**:
+
+```powershell
 Invoke-Pester ./tests -Output Detailed
 ```
 
@@ -26,9 +42,22 @@ Before pushing, run the same checks as CI:
 # Lint check (must pass)
 Invoke-ScriptAnalyzer -Path ./scripts -Recurse -Settings PSGallery
 
+# Formatting check (must pass)
+Get-ChildItem -Path ./scripts -Include '*.ps1','*.psm1' -Recurse | ForEach-Object {
+    $original = Get-Content -Path $_.FullName -Raw
+    $formatted = Invoke-Formatter -ScriptDefinition $original
+    if ($original -ne $formatted) { Write-Warning "Needs formatting: $($_.Name)" }
+}
+
 # Unit tests (must pass)
 Invoke-Pester ./tests -Output Detailed
 ```
+
+> **Tip:** To auto-fix formatting issues, use `Invoke-Formatter` to rewrite the file:
+> ```powershell
+> $content = Get-Content -Path ./scripts/Send-TeamsNotification.psm1 -Raw
+> Invoke-Formatter -ScriptDefinition $content | Set-Content -Path ./scripts/Send-TeamsNotification.psm1
+> ```
 
 ### With Code Coverage
 
@@ -44,8 +73,14 @@ Invoke-Pester -Configuration $config
 ### Quick CI Script
 
 ```powershell
-# All-in-one CI check
-Invoke-ScriptAnalyzer -Path ./scripts -Recurse -Settings PSGallery; if ($?) { Invoke-Pester ./tests -Output Detailed }
+# All-in-one CI check (lint, format, test)
+$pass = $true
+Invoke-ScriptAnalyzer -Path ./scripts -Recurse -Settings PSGallery | ForEach-Object { $pass = $false; $_ }
+Get-ChildItem -Path ./scripts -Include '*.ps1','*.psm1' -Recurse | ForEach-Object {
+    $orig = Get-Content $_.FullName -Raw; $fmt = Invoke-Formatter -ScriptDefinition $orig
+    if ($orig -ne $fmt) { Write-Warning "Needs formatting: $($_.Name)"; $pass = $false }
+}
+if ($pass) { Invoke-Pester ./tests -Output Detailed }
 ```
 
 ## Commit Messages
@@ -117,28 +152,50 @@ BREAKING CHANGE: Card body structure changed to support new Teams requirements.
 
 1. **Create a branch** from `main`:
    ```bash
-   git checkout -b feature/your-feature-name
+   git checkout -b <type>/short-description
    ```
+
+   Use branch prefixes that match your commit type:
+
+   | Branch Prefix | Use For |
+   |---------------|---------|
+   | `feature/` | New features |
+   | `fix/` | Bug fixes |
+   | `docs/` | Documentation changes |
+   | `refactor/` | Code refactoring |
+   | `ci/` | CI/workflow changes |
 
 2. **Run CI locally** (see above)
 
 3. **Add tests** for new functionality
 
-4. **Update CHANGELOG.md** under `[Unreleased]` if applicable
+4. **Ensure CHANGELOG.md** has an `[Unreleased]` section (CI validates this exists)
 
 ### PR Requirements
 
 All PRs must pass these checks before merge:
 
-| Check | Command | Threshold |
-|-------|---------|-----------|
-| Lint | `Invoke-ScriptAnalyzer -Path ./scripts -Recurse -Settings PSGallery` | No errors |
-| Tests | `Invoke-Pester ./tests` | All pass |
-| Coverage | Collected automatically | 80%+ target (not enforced) |
+| Check | Description | Threshold |
+|-------|-------------|-----------|
+| CHANGELOG | `[Unreleased]` section must exist | Required |
+| Lint | PSScriptAnalyzer with PSGallery settings | No errors |
+| Formatting | Invoke-Formatter consistency check | No differences |
+| Tests | Pester unit tests | All pass |
+| Coverage | Collected and uploaded to Codecov | 80%+ target (not enforced) |
+| Integration | action.yml validation, module import | All pass |
+| Cross-platform | Module tests on ubuntu, windows, macos | All pass |
+
+**Security Checks** (run automatically):
+
+| Check | Workflow | Purpose |
+|-------|----------|---------|
+| CodeQL | codeql.yml | Static security testing |
+| OSSF Scorecard | scorecard.yml | Supply chain security |
+| Dependency Review | On PR | Flags vulnerable dependencies |
 
 ### PR Description
 
-Include in your PR description:
+Use the [PR template](.github/PULL_REQUEST_TEMPLATE.md). Include:
 
 - Summary of changes
 - Related issue (if any)
@@ -197,6 +254,17 @@ When adding new functions to `Send-TeamsNotification.psm1`:
 3. Add corresponding tests in `Send-TeamsNotification.Tests.ps1`
 
 ## Test Requirements
+
+### CI Environments
+
+| Job | Runner | Description |
+|-----|--------|-------------|
+| validate-changelog | ubuntu-latest | Validates CHANGELOG.md format and `[Unreleased]` section |
+| lint-and-format | ubuntu-latest | PSScriptAnalyzer and Invoke-Formatter checks |
+| test | ubuntu-latest | Pester tests with JaCoCo coverage |
+| integration-test | ubuntu-latest | action.yml validation, module import, validation tests |
+| cross-platform-test | ubuntu, windows, macos | Module import and function tests on all platforms |
+| ci-status | ubuntu-latest | Aggregated status check for all jobs |
 
 ### Running Tests
 
@@ -257,7 +325,7 @@ Releases are managed by maintainers:
 - **Questions**: Open a [Discussion](https://github.com/marcus-hooper/send-teams-notification/discussions)
 - **Bugs**: Open an [Issue](https://github.com/marcus-hooper/send-teams-notification/issues)
 - **Features**: Open an [Issue](https://github.com/marcus-hooper/send-teams-notification/issues)
-- **Security**: See [SECURITY.md](SECURITY.md)
+- **Security**: See [SECURITY.md](SECURITY.md) for responsible disclosure
 
 ## License
 

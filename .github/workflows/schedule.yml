@@ -6,6 +6,11 @@ on:
     - cron: "0 6 * * 1"
   workflow_dispatch:
     # Allow manual trigger for debugging
+    inputs:
+      skip_issue_creation:
+        description: "Skip creating/updating GitHub issues on failure"
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -22,6 +27,9 @@ jobs:
     permissions:
       contents: read
 
+    env:
+      MODULE_PATH: scripts/Send-TeamsNotification.psm1
+
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
@@ -34,11 +42,12 @@ jobs:
             psg-prod-eastus.azureedge.net:443
 
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
       - name: Validate action.yml
+        id: validate-action
         shell: pwsh
         run: |
           $actionFile = Join-Path $PWD 'action.yml'
@@ -54,16 +63,18 @@ jobs:
           Write-Host "action.yml is valid ($($content.Length) characters)"
 
       - name: Verify module loads
+        id: verify-module
         shell: pwsh
         run: |
-          $modulePath = Join-Path $PWD 'scripts/Send-TeamsNotification.psm1'
+          $modulePath = Join-Path $PWD $env:MODULE_PATH
           Import-Module $modulePath -Force -ErrorAction Stop
           Write-Host "Module loaded successfully from: $modulePath"
 
       - name: Verify exported functions
+        id: verify-functions
         shell: pwsh
         run: |
-          $modulePath = Join-Path $PWD 'scripts/Send-TeamsNotification.psm1'
+          $modulePath = Join-Path $PWD $env:MODULE_PATH
           Import-Module $modulePath -Force
 
           $expectedFunctions = @(
@@ -87,9 +98,10 @@ jobs:
           $expectedFunctions | ForEach-Object { Write-Host "  - $_" }
 
       - name: Test card generation (dry run)
+        id: test-card
         shell: pwsh
         run: |
-          $modulePath = Join-Path $PWD 'scripts/Send-TeamsNotification.psm1'
+          $modulePath = Join-Path $PWD $env:MODULE_PATH
           Import-Module $modulePath -Force
 
           # Test Get-StatusStyling
@@ -131,9 +143,10 @@ jobs:
           Write-Host "New-TeamsPayload: OK"
 
       - name: Validate JSON structure
+        id: validate-json
         shell: pwsh
         run: |
-          $modulePath = Join-Path $PWD 'scripts/Send-TeamsNotification.psm1'
+          $modulePath = Join-Path $PWD $env:MODULE_PATH
           Import-Module $modulePath -Force
 
           $styling = Get-StatusStyling -Status 'failure'
@@ -175,6 +188,8 @@ jobs:
           Write-Host "Payload size: $($json.Length) characters"
 
       - name: Run PSScriptAnalyzer
+        id: lint
+        timeout-minutes: 2
         shell: pwsh
         run: |
           Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
@@ -187,6 +202,7 @@ jobs:
           Write-Host "No issues found"
 
       - name: Run Pester tests
+        id: test
         shell: pwsh
         run: |
           $config = New-PesterConfiguration
@@ -198,11 +214,134 @@ jobs:
           $config.TestResult.OutputFormat = 'NUnitXml'
           Invoke-Pester -Configuration $config
 
+      - name: Write workflow summary
+        if: always()
+        shell: pwsh
+        run: |
+          $summary = @"
+          ## Health Check Results
+
+          | Check | Status |
+          |-------|--------|
+          | action.yml validation | ${{ steps.validate-action.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |
+          | Module loading | ${{ steps.verify-module.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |
+          | Exported functions | ${{ steps.verify-functions.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |
+          | Card generation | ${{ steps.test-card.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |
+          | JSON structure | ${{ steps.validate-json.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |
+          | PSScriptAnalyzer | ${{ steps.lint.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |
+          | Pester tests | ${{ steps.test.outcome == 'success' && '✅ Passed' || '❌ Failed' }} |
+
+          **Workflow run:** [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          "@
+          $summary | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+
       - name: Upload test results
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        if: always()
+        if: failure()
         with:
           name: health-check-test-results
           path: test-results.xml
           if-no-files-found: ignore
           retention-days: 14
+
+  # Notify on failure by creating a GitHub issue
+  notify-failure:
+    name: Notify on Failure
+    runs-on: ubuntu-latest
+    needs: health-check
+    if: failure() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && !inputs.skip_issue_creation))
+    timeout-minutes: 5
+
+    permissions:
+      issues: write
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+
+      - name: Ensure health-check-failure label exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh label create "health-check-failure" --description "Automated health check detected a failure" --color "d73a4a" --force
+
+      - name: Create failure issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Check for existing open issue to avoid duplicates
+          EXISTING=$(gh issue list --label "health-check-failure" --state open --json number --jq '.[0].number // empty')
+
+          if [[ -n "$EXISTING" ]]; then
+            echo "Existing issue #$EXISTING found, adding comment"
+            RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            gh issue comment "$EXISTING" --body "Health check failed again on $(date -u '+%Y-%m-%d %H:%M UTC'). [View workflow run]($RUN_URL)"
+          else
+            echo "Creating new failure issue"
+            RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            ISSUE_BODY=$(cat <<'EOF'
+The scheduled health check workflow failed.
+
+## Details
+- **Workflow:** Scheduled Health Check
+- **Run URL:** RUN_URL_PLACEHOLDER
+
+## Possible Causes
+- PowerShell Gallery unavailable
+- Module import or export failures
+- PSScriptAnalyzer linting issues
+- Pester test failures
+- Adaptive Card generation errors
+
+Please investigate and resolve the issue.
+EOF
+)
+            # Replace placeholder with actual URL
+            ISSUE_BODY="${ISSUE_BODY//RUN_URL_PLACEHOLDER/$RUN_URL}"
+            gh issue create \
+              --title "Scheduled health check failed" \
+              --label "health-check-failure" \
+              --body "$ISSUE_BODY"
+          fi
+
+  # Auto-close failure issues when health check passes
+  notify-success:
+    name: Close Stale Failure Issues
+    runs-on: ubuntu-latest
+    needs: health-check
+    if: success() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && !inputs.skip_issue_creation))
+    timeout-minutes: 5
+
+    permissions:
+      issues: write
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+
+      - name: Close stale failure issues
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          issues=$(gh issue list --label "health-check-failure" --state open --json number --jq '.[].number' || true)
+          if [[ -n "$issues" ]]; then
+            while read -r issue; do
+              echo "Closing issue #$issue"
+              gh issue close "$issue" --comment "Health check is passing again as of $(date -u '+%Y-%m-%d %H:%M UTC'). Closing automatically."
+            done <<< "$issues"
+          fi
+          echo "Done processing stale failure issues"

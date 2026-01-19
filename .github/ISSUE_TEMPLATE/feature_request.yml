@@ -1,11 +1,14 @@
 name: Feature Request
 description: Suggest a new feature or improvement
+title: "[Feature]: "
 labels: ["type:feature"]
 body:
   - type: markdown
     attributes:
       value: |
         Thanks for suggesting a feature! Please fill out the form below.
+
+        **Before submitting**, please [search existing issues](https://github.com/marcus-hooper/send-teams-notification/issues?q=is%3Aissue+label%3Atype%3Afeature) to avoid duplicates.
 
   - type: textarea
     id: problem
@@ -38,6 +41,7 @@ body:
     attributes:
       label: Area
       description: Which part of the action does this affect?
+      multiple: true
       options:
         - Adaptive Card content / formatting
         - Teams webhook integration
@@ -65,3 +69,4 @@ body:
       description: Would you be willing to help implement this feature?
       options:
         - label: I would be willing to submit a PR for this feature
+          required: false

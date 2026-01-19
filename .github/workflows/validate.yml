@@ -38,9 +38,10 @@ jobs:
             github.com:443
             github-releases.githubusercontent.com:443
             objects.githubusercontent.com:443
+            release-assets.githubusercontent.com:443
 
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
@@ -51,10 +52,28 @@ jobs:
           echo "YAML syntax is valid"
 
       - name: Install action-validator
+        env:
+          # Pin to specific version for reproducibility
+          ACTION_VALIDATOR_VERSION: "v0.8.0"
+          # SHA256 checksum of action-validator_linux_amd64 (upstream doesn't provide checksums.txt)
+          ACTION_VALIDATOR_SHA256: "d1d9b787b897c6f8ef9e2f42c2553ce5d0a242aae3bca998d2c67dc69348b128"
         run: |
+          set -euo pipefail
           mkdir -p "$HOME/.local/bin"
-          curl -sL https://github.com/mpalmer/action-validator/releases/latest/download/action-validator_linux_amd64 \
-            -o "$HOME/.local/bin/action-validator"
+          DOWNLOAD_URL="https://github.com/mpalmer/action-validator/releases/download/${ACTION_VALIDATOR_VERSION}/action-validator_linux_amd64"
+
+          curl -fsSL "$DOWNLOAD_URL" -o "$HOME/.local/bin/action-validator"
+
+          # Verify checksum
+          ACTUAL_CHECKSUM=$(sha256sum "$HOME/.local/bin/action-validator" | awk '{print $1}')
+          if [[ "$ACTION_VALIDATOR_SHA256" != "$ACTUAL_CHECKSUM" ]]; then
+            echo "::error::Checksum verification failed!"
+            echo "Expected: $ACTION_VALIDATOR_SHA256"
+            echo "Actual: $ACTUAL_CHECKSUM"
+            exit 1
+          fi
+
+          echo "Checksum verified: $ACTUAL_CHECKSUM"
           chmod +x "$HOME/.local/bin/action-validator"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 

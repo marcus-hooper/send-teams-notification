@@ -6,6 +6,6 @@ contact_links:
   - name: Documentation
     url: https://github.com/marcus-hooper/send-teams-notification#readme
     about: Check the README for usage examples and troubleshooting
-  - name: Discussions
-    url: https://github.com/marcus-hooper/send-teams-notification/discussions
-    about: Ask questions and share ideas with the community
+  - name: Search Existing Issues
+    url: https://github.com/marcus-hooper/send-teams-notification/issues?q=is%3Aissue
+    about: Check if your issue has already been reported

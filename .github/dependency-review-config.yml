@@ -1,7 +1,16 @@
+# Fail only on high severity to balance security with practicality.
+# Medium/low vulnerabilities are logged but don't block merges.
 fail-on-severity: high
 comment-summary-in-pr: always
 retry-on-snapshot-warnings: true
 retry-on-snapshot-warnings-timeout: 120
+
+# Explicit checks (defense-in-depth)
+vulnerability-check: true
+license-check: true
+
+# Show OpenSSF Scorecard data in PR comments
+show-openssf-scorecard: true
 
 # Allow-list of approved permissive licenses
 # Using allow-list instead of deny-list per actions/dependency-review-action#997
@@ -19,6 +28,8 @@ allow-licenses:
   - BlueOak-1.0.0
   - CC-BY-3.0
   - CC-BY-4.0
+  - PSF-2.0
+  - Python-2.0
   - MPL-2.0
   - BSL-1.0
   - Unicode-DFS-2016

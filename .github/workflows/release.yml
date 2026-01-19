@@ -6,7 +6,7 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions: {}
 
@@ -15,6 +15,7 @@ jobs:
     name: Update Major Version Tag
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    if: ${{ !github.event.release.prerelease }}
 
     permissions:
       contents: write
@@ -29,23 +30,16 @@ jobs:
             github.com:443
 
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Check for CHANGELOG entry
-        run: |
-          TAG="${{ github.event.release.tag_name }}"
-          VERSION="${TAG#v}"
-          if ! grep -q "## \[$VERSION\]" CHANGELOG.md; then
-            echo "::error::No CHANGELOG entry found for version $VERSION"
-            exit 1
-          fi
-
-      - name: Extract version info
+      - name: Extract and validate version
         id: version
+        shell: bash
         run: |
+          set -euo pipefail
           TAG="${{ github.event.release.tag_name }}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
@@ -60,27 +54,104 @@ jobs:
           echo "major=$MAJOR" >> "$GITHUB_OUTPUT"
           echo "Extracted major version: $MAJOR from tag: $TAG"
 
+      - name: Check for CHANGELOG entry
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.release.tag_name }}"
+          VERSION="${TAG#v}"
+          if [ ! -f CHANGELOG.md ]; then
+            echo "::error::CHANGELOG.md not found"
+            exit 1
+          fi
+          if ! grep -qE "^## \[$VERSION\]" CHANGELOG.md; then
+            echo "::error::No CHANGELOG entry found for version $VERSION"
+            exit 1
+          fi
+
       - name: Update major version tag
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
           MAJOR="${{ steps.version.outputs.major }}"
           TAG="${{ steps.version.outputs.tag }}"
 
-          # Delete existing major tag if it exists (ignore errors)
-          gh api -X DELETE "repos/${{ github.repository }}/git/refs/tags/$MAJOR" 2>/dev/null || true
+          update_tag() {
+            # Try atomic update first (PATCH), fall back to create if tag doesn't exist
+            if OUTPUT=$(gh api -X PATCH "repos/${{ github.repository }}/git/refs/tags/$MAJOR" \
+              -f sha="${{ github.sha }}" \
+              -F force=true 2>&1); then
+              echo "Updated existing $MAJOR tag"
+              return 0
+            else
+              # Check if it's a "not found" error (tag doesn't exist yet)
+              if echo "$OUTPUT" | grep -qi "not found"; then
+                echo "Tag $MAJOR doesn't exist, creating it"
+                gh api "repos/${{ github.repository }}/git/refs" \
+                  -f ref="refs/tags/$MAJOR" \
+                  -f sha="${{ github.sha }}"
+                return 0
+              else
+                echo "::warning::API call failed: $OUTPUT"
+                return 1
+              fi
+            fi
+          }
 
-          # Create new major tag pointing to the release commit
-          gh api "repos/${{ github.repository }}/git/refs" \
-            -f ref="refs/tags/$MAJOR" \
-            -f sha="${{ github.sha }}"
+          # Retry with exponential backoff (3 attempts: 0s, 2s, 4s delays)
+          MAX_ATTEMPTS=3
+          for ((i=1; i<=MAX_ATTEMPTS; i++)); do
+            if update_tag; then
+              echo "Updated $MAJOR tag to point to $TAG"
+              exit 0
+            fi
+            if [ "$i" -lt "$MAX_ATTEMPTS" ]; then
+              DELAY=$((2 ** (i - 1)))
+              echo "Retrying in ${DELAY}s (attempt $((i + 1))/$MAX_ATTEMPTS)..."
+              sleep "$DELAY"
+            fi
+          done
 
-          echo "Updated $MAJOR tag to point to $TAG"
+          echo "::error::Failed to update tag after $MAX_ATTEMPTS attempts"
+          exit 1
 
-      - name: Update release with CHANGELOG notes
+      - name: Verify tag update
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
+          MAJOR="${{ steps.version.outputs.major }}"
+          EXPECTED_SHA="${{ github.sha }}"
+
+          # Retry verification with backoff (handles eventual consistency)
+          MAX_ATTEMPTS=3
+          for ((i=1; i<=MAX_ATTEMPTS; i++)); do
+            ACTUAL_SHA=$(gh api "repos/${{ github.repository }}/git/refs/tags/$MAJOR" --jq '.object.sha' 2>/dev/null || echo "")
+
+            if [ "$ACTUAL_SHA" = "$EXPECTED_SHA" ]; then
+              echo "Verified $MAJOR tag points to $EXPECTED_SHA"
+              exit 0
+            fi
+
+            if [ "$i" -lt "$MAX_ATTEMPTS" ]; then
+              DELAY=$((2 ** (i - 1)))
+              echo "Verification attempt $i failed (got: $ACTUAL_SHA), retrying in ${DELAY}s..."
+              sleep "$DELAY"
+            fi
+          done
+
+          echo "::error::Tag verification failed after $MAX_ATTEMPTS attempts. Expected $EXPECTED_SHA but got $ACTUAL_SHA"
+          exit 1
+
+      - name: Update release with CHANGELOG notes
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
           TAG="${{ steps.version.outputs.tag }}"
           VERSION="${TAG#v}"
 
@@ -98,3 +169,21 @@ jobs:
           else
             echo "No changelog content to extract (section may be empty)"
           fi
+
+      - name: Write job summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          MAJOR="${{ steps.version.outputs.major }}"
+          TAG="${{ steps.version.outputs.tag }}"
+          {
+            echo "## Release Summary"
+            echo ""
+            echo "| Item | Value |"
+            echo "|------|-------|"
+            echo "| Release Tag | \`$TAG\` |"
+            echo "| Major Tag | \`$MAJOR\` |"
+            echo "| Commit | \`${{ github.sha }}\` |"
+            echo ""
+            echo "The **$MAJOR** tag now points to **$TAG**."
+          } >> "$GITHUB_STEP_SUMMARY"

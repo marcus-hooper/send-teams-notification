@@ -6,18 +6,24 @@ Desktop.ini
 
 # Editor/IDE
 .vscode/
+.vs/
 .idea/
 *.sublime-workspace
 *.sublime-project
+*.code-workspace
 
 # PowerShell
 *.ps1xml
+*.nupkg
 PSScriptAnalyzerResults.txt
 
 # Test results
 TestResults.xml
 TestResults/
+nunit*.xml
 coverage.xml
+*.cobertura.xml
+coverage/
 
 # Local testing
 .env

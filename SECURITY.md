@@ -4,7 +4,7 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 1.x     | :white_check_mark: |
+| 1.x     | Yes                |
 
 ## Reporting a Vulnerability
 
@@ -25,8 +25,20 @@ If you discover a security vulnerability in this project, please report it respo
 - Acknowledgment of your report within 48 hours
 - Initial assessment within 7 days
 - Target resolution within 90 days for critical vulnerabilities
-- Regular updates on the progress of addressing the vulnerability
+- Weekly updates on the progress of addressing the vulnerability
 - Credit in the security advisory (unless you prefer to remain anonymous)
+
+### Safe Harbor
+
+We consider security research conducted in accordance with this policy to be:
+
+- Authorized concerning any applicable anti-hacking laws
+- Authorized concerning any relevant anti-circumvention laws
+- Exempt from restrictions in our Terms of Service that would interfere with conducting security research
+
+We will not pursue civil action or initiate a complaint to law enforcement for accidental, good-faith violations of this policy. We consider security research conducted consistent with this policy to be "authorized" conduct under the Computer Fraud and Abuse Act.
+
+We understand that many systems and services interconnect with third-party systems. While researching this project, ensure you do not access or modify third-party systems without authorization.
 
 ### Scope
 
@@ -40,7 +52,7 @@ The following are considered security vulnerabilities:
 
 Out of scope:
 
-- Vulnerabilities in upstream dependencies (report to the respective project)
+- Vulnerabilities in upstream dependencies (report to the respective project). However, if you notice we're using a vulnerable version, please let us know and we'll update our pinned dependencies promptly.
 - Vulnerabilities in Microsoft Teams or the Incoming Webhooks platform (report to Microsoft)
 - Issues requiring physical access or social engineering
 
@@ -53,6 +65,20 @@ Security fixes are announced via:
 
 Dependencies are monitored automatically via Dependabot.
 
+## Security Infrastructure
+
+This project employs multiple layers of automated security:
+
+| Measure | Description |
+|---------|-------------|
+| **CodeQL** | Static analysis for security vulnerabilities |
+| **OSSF Scorecard** | Supply chain security assessment published to OpenSSF |
+| **Dependency Review** | Scans PRs for vulnerable dependencies |
+| **Hardened Runners** | Workflows use `step-security/harden-runner` with egress blocking |
+| **Secret Scanning** | Detects hardcoded credentials in code |
+| **Pinned Actions** | All GitHub Actions pinned to full commit SHAs |
+| **Dependabot** | Automated dependency updates |
+
 ## Security Considerations
 
 This action handles sensitive data and performs external HTTP requests:
@@ -61,11 +87,19 @@ This action handles sensitive data and performs external HTTP requests:
 2. **HTTP requests** - Sends POST requests to Microsoft Teams webhook endpoints
 3. **Input parsing** - Processes JSON input for commit messages
 
+### Network Endpoints
+
+If you have firewall or egress restrictions, allow these endpoints:
+
+| Endpoint | Port | Purpose |
+|----------|------|---------|
+| `*.webhook.office.com` | 443 | Teams Incoming Webhook |
+
 ### Best Practices for Users
 
 1. **Store webhook URLs in GitHub Secrets** - Never hardcode webhook URLs in workflow files
 2. **Use environment-level secrets** - Scope secrets to specific environments when possible
-3. **Pin to a specific version** - Use a tagged release (e.g., `@v1`) rather than `@main`
+3. **Pin to a specific version** - Use a full commit SHA (e.g., `@a1b2c3d...`) for maximum security, or a tagged release (e.g., `@v1.0.0`) rather than `@main`
 4. **Review workflow permissions** - Grant only necessary permissions to your workflow
 5. **Rotate webhook URLs** - If a webhook URL is exposed, delete and recreate the connector in Teams
 6. **Limit channel access** - Create webhooks only for channels that need notifications

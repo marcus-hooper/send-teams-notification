@@ -1,6 +1,6 @@
 # GitHub Labels Configuration
-# Apply with: npx github-label-sync --labels .github/labels.yml owner/repo
-# Or use GitHub CLI: gh label create "name" --description "desc" --color "color"
+# Synced automatically by .github/workflows/labels.yml using EndBug/label-sync
+# Manual: gh label create "name" --description "desc" --color "color"
 
 # Issue Types
 - name: "type:bug"
@@ -25,7 +25,11 @@
 
 - name: "type:test"
   description: "Test improvements or additions"
-  color: "BFD4F2"
+  color: "1D76DB"
+
+- name: "type:performance"
+  description: "Performance improvements or optimization"
+  color: "5319E7"
 
 # Priority
 - name: "priority:critical"
@@ -67,7 +71,11 @@
 
 - name: "status:in-progress"
   description: "Currently being worked on"
-  color: "0E8A16"
+  color: "1D76DB"
+
+- name: "status:ready-for-review"
+  description: "Ready for code review"
+  color: "6F42C1"
 
 # Areas
 - name: "area:powershell"
@@ -115,3 +123,16 @@
 - name: "needs-review"
   description: "PR needs manual review before merging"
   color: "FBCA04"
+
+- name: "deps:powershell"
+  description: "PowerShell module dependency updates"
+  color: "012456"
+
+# Automated
+- name: "health-check-failure"
+  description: "Automated issue from failed scheduled health check"
+  color: "D73A4A"
+
+- name: "stale"
+  description: "Issue or PR has been inactive"
+  color: "CFD3D7"

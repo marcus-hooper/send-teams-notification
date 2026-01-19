@@ -41,45 +41,104 @@ jobs:
           (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
            steps.metadata.outputs.update-type == 'version-update:semver-minor')
         run: |
-          echo "Auto-merging ${{ steps.metadata.outputs.update-type }} update"
-          echo "Package: ${{ steps.metadata.outputs.dependency-names }}"
-          gh pr merge --auto --squash "$PR_URL"
+          echo "Auto-merging ${UPDATE_TYPE} update"
+          echo "Package: ${DEPENDENCY_NAMES}"
+          if ! gh pr merge --auto --squash "$PR_URL" 2>&1; then
+            echo "::warning::Auto-merge request failed - PR may already have auto-merge enabled or branch protection rules may not be met"
+          fi
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UPDATE_TYPE: ${{ steps.metadata.outputs.update-type }}
+          DEPENDENCY_NAMES: ${{ steps.metadata.outputs.dependency-names }}
 
       - name: Skip auto-merge for GitHub Actions updates
-        if: steps.metadata.outputs.package-ecosystem == 'github_actions'
+        if: |
+          steps.metadata.outputs.package-ecosystem == 'github_actions' &&
+          steps.metadata.outputs.update-type != 'version-update:semver-major'
         run: |
           echo "GitHub Actions updates require manual merge (GITHUB_TOKEN cannot modify workflow files)"
-          echo "Please review and merge PR #${{ github.event.pull_request.number }} manually"
 
-      - name: Add label for major updates
-        if: steps.metadata.outputs.update-type == 'version-update:semver-major'
-        run: |
-          echo "Major update detected - requires manual review"
-          # Create labels if they don't exist (ignore errors if they already exist)
-          gh label create "major-update" --description "Major version update requiring manual review" --color "d73a4a" 2>/dev/null || true
-          gh label create "needs-review" --description "PR needs manual review before merging" --color "fbca04" 2>/dev/null || true
-          gh pr edit "$PR_URL" --add-label "major-update,needs-review"
+          # Check if we already commented on this PR
+          EXISTING_COMMENT=$(gh pr view "$PR_URL" --json comments --jq '.comments[].body' | grep -c "GitHub Actions update requires manual merge" || true)
+          if [ "$EXISTING_COMMENT" -eq "0" ]; then
+            gh pr comment "$PR_URL" --body "$(cat <<'EOF'
+**GitHub Actions update requires manual merge**
+
+This PR updates a GitHub Actions workflow dependency.
+
+Due to GitHub security restrictions, the `GITHUB_TOKEN` cannot modify workflow files, so this PR cannot be auto-merged.
+
+**Action required:** Please review and merge this PR manually.
+EOF
+)"
+          else
+            echo "Comment already exists, skipping"
+          fi
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
 
-      - name: Comment on major updates
-        if: steps.metadata.outputs.update-type == 'version-update:semver-major'
+      - name: Handle major updates
+        if: |
+          steps.metadata.outputs.update-type == 'version-update:semver-major' &&
+          steps.metadata.outputs.package-ecosystem != 'github_actions'
         run: |
-          gh pr comment "$PR_URL" --body "**Major version update detected**
+          echo "Major update detected - requires manual review"
+          gh pr edit "$PR_URL" --add-label "major-update" --add-label "needs-review"
 
-          This PR updates **${{ steps.metadata.outputs.dependency-names }}** to a new major version.
+          # Check if we already commented on this PR
+          EXISTING_COMMENT=$(gh pr view "$PR_URL" --json comments --jq '.comments[].body' | grep -c "Major version update detected" || true)
+          if [ "$EXISTING_COMMENT" -eq "0" ]; then
+            gh pr comment "$PR_URL" --body "$(cat <<'EOF'
+**Major version update detected**
 
-          **Action required:**
-          1. Review the changelog for breaking changes
-          2. Test thoroughly before merging
-          3. Merge manually when ready
+This PR updates a dependency to a new major version.
 
-          Major updates are not auto-merged for safety."
+**Action required:**
+1. Review the changelog for breaking changes
+2. Test thoroughly before merging
+3. Merge manually when ready
+
+Major updates are not auto-merged for safety.
+EOF
+)"
+          else
+            echo "Comment already exists, skipping"
+          fi
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Handle GitHub Actions major updates
+        if: |
+          steps.metadata.outputs.update-type == 'version-update:semver-major' &&
+          steps.metadata.outputs.package-ecosystem == 'github_actions'
+        run: |
+          echo "GitHub Actions major update detected - requires manual review and merge"
+          gh pr edit "$PR_URL" --add-label "major-update" --add-label "needs-review"
+
+          # Check if we already commented on this PR
+          EXISTING_COMMENT=$(gh pr view "$PR_URL" --json comments --jq '.comments[].body' | grep -c "GitHub Actions major version update" || true)
+          if [ "$EXISTING_COMMENT" -eq "0" ]; then
+            gh pr comment "$PR_URL" --body "$(cat <<'EOF'
+**GitHub Actions major version update**
+
+This PR updates a GitHub Actions dependency to a new major version.
+
+**Action required:**
+1. Review the changelog for breaking changes
+2. Test thoroughly before merging
+3. Merge manually when ready
+
+> **Note:** Due to GitHub security restrictions, the `GITHUB_TOKEN` cannot modify workflow files, so this PR cannot be auto-merged regardless of version type.
+
+Major updates are not auto-merged for safety.
+EOF
+)"
+          else
+            echo "Comment already exists, skipping"
+          fi
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,22 +1,19 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
-    paths-ignore:
-      - '**.md'
+    paths-ignore: &paths-ignore
+      - 'README.md'
+      - 'SECURITY.md'
       - 'docs/**'
       - '.github/*.md'
       - '.github/ISSUE_TEMPLATE/**'
       - 'LICENSE'
   pull_request:
     branches: [main]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.github/*.md'
-      - '.github/ISSUE_TEMPLATE/**'
-      - 'LICENSE'
+    paths-ignore: *paths-ignore
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -41,7 +38,7 @@ jobs:
             github.com:443
 
       - name: Checkout repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
@@ -71,9 +68,11 @@ jobs:
           allowed-endpoints: >
             api.github.com:443
             github.com:443
+            psg-prod-eastus.azureedge.net:443
+            www.powershellgallery.com:443
 
       - name: Checkout repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
@@ -92,7 +91,7 @@ jobs:
         shell: pwsh
         run: |
           $hasErrors = $false
-          Get-ChildItem -Path ./scripts -Include *.ps1, *.psm1 -Recurse | ForEach-Object {
+          Get-ChildItem -Path ./scripts -Include '*.ps1', '*.psm1' -Recurse | ForEach-Object {
             $original = Get-Content -Path $_.FullName -Raw
             $formatted = Invoke-Formatter -ScriptDefinition $original
             if ($original -ne $formatted) {
@@ -108,8 +107,12 @@ jobs:
 
   test:
     name: Run Pester Tests
+    needs: [lint-and-format]
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      checks: write
 
     steps:
       - name: Harden Runner
@@ -126,7 +129,7 @@ jobs:
             uploader.codecov.io:443
 
       - name: Checkout repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
@@ -140,7 +143,7 @@ jobs:
           $config.TestResult.OutputPath = 'test-results.xml'
           $config.TestResult.OutputFormat = 'NUnitXml'
           $config.CodeCoverage.Enabled = $true
-          $config.CodeCoverage.Path = './scripts/Send-TeamsNotification.psm1'
+          $config.CodeCoverage.Path = @('./scripts/send-teams.ps1', './scripts/Send-TeamsNotification.psm1')
           $config.CodeCoverage.OutputPath = 'coverage.xml'
           $config.CodeCoverage.OutputFormat = 'JaCoCo'
 
@@ -165,19 +168,30 @@ jobs:
           path: |
             test-results.xml
             coverage.xml
-          if-no-files-found: ignore
+          if-no-files-found: error
           retention-days: 14
+
+      - name: Publish test results
+        uses: dorny/test-reporter@b082adf0eced0765477756c2a610396589b8c637 # v2.5.0
+        if: always()
+        with:
+          name: Pester Tests
+          path: test-results.xml
+          reporter: dotnet-nunit
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        if: always()
         with:
           files: coverage.xml
           fail_ci_if_error: false
+          verbose: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   integration-test:
     name: Integration Test
+    needs: [lint-and-format]
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -191,34 +205,27 @@ jobs:
             github.com:443
 
       - name: Checkout repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
       - name: Validate action.yml
-        shell: pwsh
         run: |
-          if (-not (Test-Path './action.yml')) {
-            Write-Error "action.yml not found"
+          echo "Validating action.yml syntax..."
+          if ! yq eval '.' action.yml > /dev/null 2>&1; then
+            echo "::error::action.yml is not valid YAML"
             exit 1
-          }
-          Write-Host "action.yml exists"
+          fi
+          echo "action.yml is valid YAML"
 
-          # Validate YAML syntax by parsing it
-          $content = Get-Content './action.yml' -Raw
-          try {
-            $null = ConvertFrom-Yaml $content -ErrorAction Stop
-            Write-Host "action.yml is valid YAML"
-          } catch {
-            # ConvertFrom-Yaml may not be available, use yq or basic validation
-            Write-Host "YAML module not available, performing basic validation"
-            if ($content -match 'name:' -and $content -match 'runs:' -and $content -match 'inputs:') {
-              Write-Host "action.yml contains required fields"
-            } else {
-              Write-Error "action.yml missing required fields"
-              exit 1
-            }
-          }
+          # Validate required fields for composite action
+          if ! yq eval '.name' action.yml > /dev/null 2>&1 || \
+             ! yq eval '.runs.using' action.yml > /dev/null 2>&1 || \
+             ! yq eval '.inputs' action.yml > /dev/null 2>&1; then
+            echo "::error::action.yml missing required fields (name, runs.using, or inputs)"
+            exit 1
+          fi
+          echo "action.yml contains required fields"
 
       - name: Verify module can be imported
         shell: pwsh
@@ -251,6 +258,7 @@ jobs:
 
   cross-platform-test:
     name: Cross-Platform Test (${{ matrix.os }})
+    needs: [test]
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
@@ -268,7 +276,7 @@ jobs:
             github.com:443
 
       - name: Checkout repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
@@ -312,12 +320,6 @@ jobs:
     needs: [validate-changelog, lint-and-format, test, integration-test, cross-platform-test]
 
     steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
-        with:
-          egress-policy: block
-          allowed-endpoints: ""
-
       - name: Check CI status
         run: |
           if [[ "${{ needs.validate-changelog.result }}" != "success" ]] || \

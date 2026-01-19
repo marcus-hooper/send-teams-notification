@@ -2,12 +2,17 @@
 
 [![CI](https://github.com/marcus-hooper/send-teams-notification/actions/workflows/ci.yml/badge.svg)](https://github.com/marcus-hooper/send-teams-notification/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/marcus-hooper/send-teams-notification/actions/workflows/codeql.yml/badge.svg)](https://github.com/marcus-hooper/send-teams-notification/actions/workflows/codeql.yml)
+[![Security](https://github.com/marcus-hooper/send-teams-notification/actions/workflows/security.yml/badge.svg)](https://github.com/marcus-hooper/send-teams-notification/actions/workflows/security.yml)
 [![GitHub release](https://img.shields.io/github/v/release/marcus-hooper/send-teams-notification)](https://github.com/marcus-hooper/send-teams-notification/releases)
-[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/marcus-hooper/send-teams-notification/badge)](https://securityscorecards.dev/viewer/?uri=github.com/marcus-hooper/send-teams-notification)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/marcus-hooper/send-teams-notification/badge)](https://scorecard.dev/viewer/?uri=github.com/marcus-hooper/send-teams-notification)
 [![PowerShell 7](https://img.shields.io/badge/PowerShell-7-blue.svg)](https://docs.microsoft.com/en-us/powershell/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A composite GitHub Action that posts Adaptive Cards to Microsoft Teams via Incoming Webhooks.
+
+## Important Notice
+
+> **Office 365 Connectors Deprecation**: Microsoft has announced that Office 365 Connectors, including Incoming Webhooks, are being retired. While this action continues to work with existing webhooks, Microsoft recommends migrating to [Workflows (Power Automate)](https://learn.microsoft.com/en-us/power-automate/teams/send-a-message-in-teams) for new integrations. See Microsoft's [retirement announcement](https://devblogs.microsoft.com/microsoft365dev/retirement-of-office-365-connectors-within-microsoft-teams/) for timeline and migration guidance.
 
 ## Features
 
@@ -35,6 +40,8 @@ jobs:
           job_status: ${{ job.status }}
           webhook_url: ${{ secrets.TEAMS_WEBHOOK_URL }}
 ```
+
+> **Note**: The `if: ${{ always() }}` condition ensures the notification step runs regardless of whether previous steps succeeded or failed. Without this, the notification would be skipped when the job fails—which is usually when you most want to be notified.
 
 With environment and custom title:
 
@@ -66,6 +73,8 @@ With commit messages (collapsible section in card):
     commit_messages: ${{ steps.commits.outputs.json }}
     webhook_url: ${{ secrets.TEAMS_WEBHOOK_URL }}
 ```
+
+> **Note**: The git log format above may produce invalid JSON if commit messages contain double quotes or backslashes. For repositories with complex commit messages, consider using `jq` to properly escape the values, or limit to commit SHAs only.
 
 ### Complete Workflow Example
 
@@ -124,7 +133,7 @@ The action sends an Adaptive Card to Teams with the following structure:
 │ Environment   production                        │
 │ Actor         username                          │
 │                                                 │
-│ ▶ Recent Commits (tap to expand)               │
+│ ▶ Recent Commits (tap to expand)                │
 │   abc1234  Fix authentication bug               │
 │   def5678  Add new feature                      │
 │   ghi9012  Update dependencies                  │
@@ -163,7 +172,7 @@ The action sends an Adaptive Card to Teams with the following structure:
 
 ## Requirements
 
-- GitHub-hosted runners (Linux/Windows/macOS) with PowerShell 7 available (default on GitHub runners)
+- Any GitHub Actions runner (GitHub-hosted or self-hosted) with PowerShell 7 available
 - Microsoft Teams Incoming Webhook connector configured for the target channel
 
 ## Limitations
@@ -188,6 +197,7 @@ The action sends an Adaptive Card to Teams with the following structure:
 | Emoji or characters look wrong | Encoding issues | Ensure your YAML files are UTF-8 without BOM |
 | No commits section | Invalid JSON | Ensure commit_messages is valid JSON (quote properly and avoid YAML mangling) |
 | 403/Forbidden | Webhook URL expired or revoked | Generate a new webhook URL in Teams |
+| Connector not available | Channel permissions restrict connectors | Ask a Teams admin to enable connectors for the channel or team |
 
 ### Debug Tips
 
@@ -307,6 +317,17 @@ See the issue templates for [bug reports](.github/ISSUE_TEMPLATE/bug_report.yml)
 - Review branch protections for workflows that can send notifications
 
 See [SECURITY.md](SECURITY.md) for security policy and reporting vulnerabilities.
+
+## Related Projects
+
+- [deployment-notification-o365](https://github.com/marcus-hooper/deployment-notification-o365) - Email notifications via Microsoft Graph API
+- [Teams Incoming Webhooks](https://learn.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook) - Teams connector setup guide
+- [Adaptive Cards Designer](https://adaptivecards.io/designer/) - Visual card designer tool
+- [Adaptive Cards Schema](https://adaptivecards.io/explorer/) - Card element reference
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 ## License
 

@@ -8,6 +8,10 @@ body:
       value: |
         Thanks for reporting a bug! Please fill out the information below to help us investigate.
 
+        **Before submitting**, please review the [README](https://github.com/marcus-hooper/send-teams-notification#readme) for usage guidance.
+
+        **Tip**: Enable debug logging by adding `ACTIONS_STEP_DEBUG: true` to your repository secrets or workflow env. This provides more detailed output in the logs.
+
   - type: textarea
     id: description
     attributes:
@@ -23,9 +27,9 @@ body:
       label: Steps to Reproduce
       description: Steps to reproduce the behavior
       placeholder: |
-        1.
-        2.
-        3.
+        1. Configure workflow with...
+        2. Trigger the action...
+        3. See error...
     validations:
       required: true
 
@@ -34,6 +38,7 @@ body:
     attributes:
       label: Expected Behavior
       description: What you expected to happen
+      placeholder: What should have happened?
     validations:
       required: true
 
@@ -42,6 +47,7 @@ body:
     attributes:
       label: Actual Behavior
       description: What actually happened
+      placeholder: What happened instead?
     validations:
       required: true
 
@@ -49,7 +55,7 @@ body:
     id: workflow-configuration
     attributes:
       label: Workflow Configuration
-      description: Paste your workflow YAML here (redact secrets)
+      description: Paste your workflow YAML here (redact secrets but include the full job/step configuration)
       render: yaml
       placeholder: |
         - name: Notify Teams
@@ -58,23 +64,32 @@ body:
             webhook_url: ${{ secrets.TEAMS_WEBHOOK }}
             job_status: ${{ job.status }}
     validations:
-      required: false
+      required: true
 
   - type: dropdown
     id: runner-os
     attributes:
       label: Runner OS
+      description: Which runner are you using?
       options:
         - ubuntu-latest
         - ubuntu-24.04
         - ubuntu-22.04
+        - ubuntu-slim
+        - ubuntu-24.04-slim
+        - ubuntu-24.04-arm
+        - ubuntu-22.04-arm
         - windows-latest
+        - windows-2025
         - windows-2022
-        - windows-2019
+        - windows-11-arm
         - macos-latest
+        - macos-15
+        - macos-15-intel
         - macos-14
         - macos-13
-        - Other (specify in Additional Context)
+        - Self-hosted (specify in additional context)
+        - Other (specify in additional context)
     validations:
       required: true
 
@@ -87,6 +102,27 @@ body:
     validations:
       required: true
 
+  - type: input
+    id: powershell-version
+    attributes:
+      label: PowerShell Version
+      description: The PowerShell version shown in the workflow logs (if known)
+      placeholder: "7.4.6"
+    validations:
+      required: false
+
+  - type: textarea
+    id: error-message
+    attributes:
+      label: Error Message
+      description: The exact error message (if any), including stack traces
+      render: shell
+      placeholder: |
+        Invoke-RestMethod: The remote server returned an error: (400) Bad Request.
+        At D:\a\repo\send-teams.ps1:42 char:5
+    validations:
+      required: false
+
   - type: textarea
     id: logs
     attributes:
@@ -95,14 +131,17 @@ body:
       render: shell
       placeholder: Expand the "Send Teams Notification" step and copy relevant output
     validations:
-      required: false
+      required: true
 
   - type: checkboxes
-    id: webhook-verified
+    id: prerequisites
     attributes:
-      label: Webhook Verification
+      label: Prerequisites
       options:
-        - label: Webhook URL is verified working (tested with manual POST or previously worked)
+        - label: I have searched existing issues for duplicates
+          required: true
+        - label: I have verified the webhook URL works (e.g., tested with curl/Invoke-RestMethod or it previously worked with this action)
+          required: true
 
   - type: textarea
     id: additional-context
