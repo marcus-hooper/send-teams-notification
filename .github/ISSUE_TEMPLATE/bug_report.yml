@@ -47,7 +47,11 @@ body:
     attributes:
       label: Actual Behavior
       description: What actually happened
-      placeholder: What happened instead?
+      placeholder: |
+        Describe what happened:
+        - Did the notification send but look wrong?
+        - Did it fail with an error?
+        - Was the card missing expected content?
     validations:
       required: true
 
@@ -138,10 +142,12 @@ body:
     attributes:
       label: Prerequisites
       options:
-        - label: I have searched existing issues for duplicates
+        - label: I have [searched existing issues](https://github.com/marcus-hooper/send-teams-notification/issues?q=is%3Aissue) for duplicates
           required: true
         - label: I have verified the webhook URL works (e.g., tested with curl/Invoke-RestMethod or it previously worked with this action)
           required: true
+        - label: Teams channel allows incoming webhooks (connector is not disabled by admin)
+        - label: Webhook URL is for the correct channel
 
   - type: textarea
     id: additional-context

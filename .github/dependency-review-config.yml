@@ -5,12 +5,19 @@ comment-summary-in-pr: always
 retry-on-snapshot-warnings: true
 retry-on-snapshot-warnings-timeout: 120
 
+# Check both runtime and development dependencies for vulnerabilities
+fail-on-scopes:
+  - runtime
+  - development
+
 # Explicit checks (defense-in-depth)
 vulnerability-check: true
 license-check: true
 
 # Show OpenSSF Scorecard data in PR comments
+# Warn when a dependency's scorecard is below this threshold (1-10, lower = stricter)
 show-openssf-scorecard: true
+warn-on-openssf-scorecard-level: 3
 
 # Allow-list of approved permissive licenses
 # Using allow-list instead of deny-list per actions/dependency-review-action#997

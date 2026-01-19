@@ -117,6 +117,7 @@ jobs:
       - name: Check for hardcoded secrets
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           $patterns = @(
             @{ Pattern = 'password\s*=\s*[''"][^''"]+[''"]'; Description = 'Hardcoded password' },
             @{ Pattern = 'api[_-]?key\s*=\s*[''"][^''"]+[''"]'; Description = 'Hardcoded API key' },
@@ -175,6 +176,7 @@ jobs:
         id: unsafe-patterns
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           $unsafePatterns = @(
             @{ Pattern = 'Invoke-Expression'; Description = 'Invoke-Expression can execute arbitrary code' },
             @{ Pattern = '\|\s*iex\b'; Description = 'Piping to iex can execute arbitrary code' },

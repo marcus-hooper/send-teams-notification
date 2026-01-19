@@ -59,8 +59,8 @@ jobs:
         run: |
           echo "GitHub Actions updates require manual merge (GITHUB_TOKEN cannot modify workflow files)"
 
-          # Check if we already commented on this PR
-          EXISTING_COMMENT=$(gh pr view "$PR_URL" --json comments --jq '.comments[].body' | grep -c "GitHub Actions update requires manual merge" || true)
+          # Check if we already commented on this PR using a hidden marker
+          EXISTING_COMMENT=$(gh pr view "$PR_URL" --json comments --jq '.comments[].body' | grep -c "$COMMENT_MARKER" || true)
           if [ "$EXISTING_COMMENT" -eq "0" ]; then
             gh pr comment "$PR_URL" --body "$COMMENT_BODY"
           else
@@ -69,7 +69,9 @@ jobs:
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_MARKER: "<!-- dependabot-auto-merge:gha-manual -->"
           COMMENT_BODY: |
+            <!-- dependabot-auto-merge:gha-manual -->
             **GitHub Actions update requires manual merge**
 
             This PR updates a GitHub Actions workflow dependency.
@@ -84,10 +86,10 @@ jobs:
           steps.metadata.outputs.package-ecosystem != 'github_actions'
         run: |
           echo "Major update detected - requires manual review"
-          gh pr edit "$PR_URL" --add-label "major-update" --add-label "needs-review"
+          gh pr edit "$PR_URL" --add-label "deps:major" --add-label "status:needs-review"
 
-          # Check if we already commented on this PR
-          EXISTING_COMMENT=$(gh pr view "$PR_URL" --json comments --jq '.comments[].body' | grep -c "Major version update detected" || true)
+          # Check if we already commented on this PR using a hidden marker
+          EXISTING_COMMENT=$(gh pr view "$PR_URL" --json comments --jq '.comments[].body' | grep -c "$COMMENT_MARKER" || true)
           if [ "$EXISTING_COMMENT" -eq "0" ]; then
             gh pr comment "$PR_URL" --body "$COMMENT_BODY"
           else
@@ -96,7 +98,9 @@ jobs:
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_MARKER: "<!-- dependabot-auto-merge:major-update -->"
           COMMENT_BODY: |
+            <!-- dependabot-auto-merge:major-update -->
             **Major version update detected**
 
             This PR updates a dependency to a new major version.
@@ -114,10 +118,10 @@ jobs:
           steps.metadata.outputs.package-ecosystem == 'github_actions'
         run: |
           echo "GitHub Actions major update detected - requires manual review and merge"
-          gh pr edit "$PR_URL" --add-label "major-update" --add-label "needs-review"
+          gh pr edit "$PR_URL" --add-label "deps:major" --add-label "status:needs-review"
 
-          # Check if we already commented on this PR
-          EXISTING_COMMENT=$(gh pr view "$PR_URL" --json comments --jq '.comments[].body' | grep -c "GitHub Actions major version update" || true)
+          # Check if we already commented on this PR using a hidden marker
+          EXISTING_COMMENT=$(gh pr view "$PR_URL" --json comments --jq '.comments[].body' | grep -c "$COMMENT_MARKER" || true)
           if [ "$EXISTING_COMMENT" -eq "0" ]; then
             gh pr comment "$PR_URL" --body "$COMMENT_BODY"
           else
@@ -126,7 +130,9 @@ jobs:
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_MARKER: "<!-- dependabot-auto-merge:gha-major -->"
           COMMENT_BODY: |
+            <!-- dependabot-auto-merge:gha-major -->
             **GitHub Actions major version update**
 
             This PR updates a GitHub Actions dependency to a new major version.

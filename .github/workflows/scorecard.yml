@@ -22,7 +22,7 @@ jobs:
   # Job 1: Run Scorecard and publish to OpenSSF (requires uses-only steps)
   # Note: Scorecard only runs on the main repository, not forks (forks lack required permissions)
   analysis:
-    if: github.repository_owner == github.event.repository.owner.login && !github.event.repository.fork
+    if: ${{ !github.event.repository.fork }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -99,6 +99,20 @@ jobs:
       - name: Add SARIF summary
         run: |
           set -euo pipefail
+
+          # Write workflow summary for GitHub Actions UI
+          {
+            echo "## Scorecard Analysis Complete"
+            echo ""
+            echo "Results uploaded to the **Code Scanning** tab."
+            echo ""
+            echo "Scorecard evaluates repository security posture across 18 checks including:"
+            echo "- Branch protection"
+            echo "- Dependency management"
+            echo "- CI/CD security"
+            echo "- Vulnerability disclosure"
+          } >> "$GITHUB_STEP_SUMMARY"
+
           # Add a summary note to the first SARIF run's invocations, preserving any existing invocation data.
           jq '.runs[0].invocations = (.runs[0].invocations // []) + [{"executionSuccessful": true, "toolExecutionNotifications": [{"level": "note", "message": {"text": "Scorecard evaluated repository security posture across 18 checks including branch protection, dependency management, CI/CD security, and vulnerability disclosure."}, "descriptor": {"id": "scanned-files-summary"}}]}]' \
             results.sarif > results.tmp
