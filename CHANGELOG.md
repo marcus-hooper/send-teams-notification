@@ -7,13 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- CodeQL bundle download now allowed in harden-runner egress policy
-- Corrected property and parameter names in CI cross-platform test
-- Fixed PowerShell formatting in send-teams.ps1
-
-## [1.1.0] - 2026-01-17
+## [1.1.0] - 2026-01-19
 
 ### Added
 
@@ -30,12 +24,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated github/codeql-action from v3 to v4
 - Updated ossf/scorecard-action from 2.4.0 to 2.4.3
 - Updated issue templates from Markdown to YAML forms
+- Use JUnitXml format for Pester test output
+- Replace heredocs with env vars for multiline strings in workflows
 
 ### Fixed
 
 - Single commit array handling bug
 - PSScriptAnalyzer warnings for empty catch block and ShouldProcess
 - Inconsistent action versions across workflows (standardized harden-runner to v2.14.0, checkout to v6.0.1, codeql-action to consistent SHA)
+- CodeQL bundle download now allowed in harden-runner egress policy
+- Corrected property and parameter names in CI cross-platform test
+- Fixed PowerShell formatting in send-teams.ps1
+- Security scan false positive
 
 ### Security
 
