@@ -275,6 +275,22 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ISSUE_BODY: |
+            The scheduled health check workflow failed.
+
+            ## Details
+            - **Workflow:** Scheduled Health Check
+            - **Run URL:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            ## Possible Causes
+            - PowerShell Gallery unavailable
+            - Module import or export failures
+            - PSScriptAnalyzer linting issues
+            - Pester test failures
+            - Adaptive Card generation errors
+
+            Please investigate and resolve the issue.
         run: |
           set -euo pipefail
           # Check for existing open issue to avoid duplicates
@@ -282,30 +298,9 @@ jobs:
 
           if [[ -n "$EXISTING" ]]; then
             echo "Existing issue #$EXISTING found, adding comment"
-            RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             gh issue comment "$EXISTING" --body "Health check failed again on $(date -u '+%Y-%m-%d %H:%M UTC'). [View workflow run]($RUN_URL)"
           else
             echo "Creating new failure issue"
-            RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            ISSUE_BODY=$(cat <<'EOF'
-The scheduled health check workflow failed.
-
-## Details
-- **Workflow:** Scheduled Health Check
-- **Run URL:** RUN_URL_PLACEHOLDER
-
-## Possible Causes
-- PowerShell Gallery unavailable
-- Module import or export failures
-- PSScriptAnalyzer linting issues
-- Pester test failures
-- Adaptive Card generation errors
-
-Please investigate and resolve the issue.
-EOF
-)
-            # Replace placeholder with actual URL
-            ISSUE_BODY="${ISSUE_BODY//RUN_URL_PLACEHOLDER/$RUN_URL}"
             gh issue create \
               --title "Scheduled health check failed" \
               --label "health-check-failure" \
