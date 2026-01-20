@@ -1,10 +1,11 @@
 # Send Teams Notification (Adaptive Cards)
 
 [![CI](https://github.com/marcus-hooper/send-teams-notification/actions/workflows/ci.yml/badge.svg)](https://github.com/marcus-hooper/send-teams-notification/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/marcus-hooper/send-teams-notification/graph/badge.svg)](https://codecov.io/gh/marcus-hooper/send-teams-notification)
 [![CodeQL](https://github.com/marcus-hooper/send-teams-notification/actions/workflows/codeql.yml/badge.svg)](https://github.com/marcus-hooper/send-teams-notification/actions/workflows/codeql.yml)
 [![Security](https://github.com/marcus-hooper/send-teams-notification/actions/workflows/security.yml/badge.svg)](https://github.com/marcus-hooper/send-teams-notification/actions/workflows/security.yml)
-[![GitHub release](https://img.shields.io/github/v/release/marcus-hooper/send-teams-notification)](https://github.com/marcus-hooper/send-teams-notification/releases)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/marcus-hooper/send-teams-notification/badge)](https://scorecard.dev/viewer/?uri=github.com/marcus-hooper/send-teams-notification)
+[![GitHub release](https://img.shields.io/github/v/release/marcus-hooper/send-teams-notification)](https://github.com/marcus-hooper/send-teams-notification/releases)
 [![PowerShell 7](https://img.shields.io/badge/PowerShell-7-blue.svg)](https://docs.microsoft.com/en-us/powershell/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
