@@ -136,3 +136,11 @@
 - name: "status:stale"
   description: "Issue or PR has been inactive"
   color: "CFD3D7"
+
+- name: "automerge"
+  description: "Automatically merge when checks pass"
+  color: "0E8A16"
+
+- name: "do-not-merge"
+  description: "Do not merge this PR"
+  color: "B60205"
