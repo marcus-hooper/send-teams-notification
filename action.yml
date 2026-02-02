@@ -1,4 +1,4 @@
-﻿name: Send Teams Notification
+name: Send Teams Notification
 description: Send an Adaptive Card to Microsoft Teams via webhook (PowerShell)
 branding:
   color: blue
