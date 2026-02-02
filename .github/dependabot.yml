@@ -25,10 +25,10 @@ updates:
       ci-actions:
         patterns:
           - "actions/*"
-          - "github/dependency-review-action"
           - "dorny/*"
           - "codecov/*"
           - "EndBug/*"
+          - "dependabot/*"
         update-types:
           - "minor"
           - "patch"
