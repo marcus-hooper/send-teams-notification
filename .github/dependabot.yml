@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # GitHub Actions
+  # GitHub Actions - minor and patch updates (grouped, auto-mergeable)
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -17,6 +17,7 @@ updates:
           - "ossf/*"
           - "github/codeql-action"
           - "step-security/*"
+          - "gitleaks/*"
         update-types:
           - "minor"
           - "patch"
@@ -25,12 +26,40 @@ updates:
         patterns:
           - "actions/*"
           - "github/dependency-review-action"
+          - "dorny/*"
+          - "codecov/*"
+          - "EndBug/*"
         update-types:
           - "minor"
           - "patch"
     labels:
       - "deps:all"
       - "deps:github-actions"
+      - "automerge"
     commit-message:
       prefix: "chore(ci)"
       include: "scope"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # GitHub Actions - major updates (separate PRs, require manual review)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 2
+    rebase-strategy: "auto"
+    labels:
+      - "deps:all"
+      - "deps:github-actions"
+      - "deps:major"
+    commit-message:
+      prefix: "chore(ci)"
+      include: "scope"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
