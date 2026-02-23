@@ -192,7 +192,6 @@ jobs:
         timeout-minutes: 2
         shell: pwsh
         run: |
-          Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
           $results = Invoke-ScriptAnalyzer -Path ./scripts -Recurse -Settings PSGallery
           $results | Format-Table -AutoSize
           if ($results) {
