@@ -284,7 +284,7 @@ jobs:
           }
 
       - name: Upload SARIF results
-        uses: github/codeql-action/upload-sarif@34950e1b113b30df4edee1a6d3a605242df0c40b # v4
+        uses: github/codeql-action/upload-sarif@0b7b740d4cd9b44f80c907b666497564df09d1d9 # v4
         if: always()
         with:
           sarif_file: security-results.sarif
