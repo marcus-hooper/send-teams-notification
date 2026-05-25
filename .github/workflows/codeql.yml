@@ -59,13 +59,13 @@ jobs:
       # CodeQL doesn't natively support PowerShell, but can analyze:
       # - GitHub Actions workflows (YAML) for security issues
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@164c32a61e8b00fcca148eabf7da96803679a164 # v4
+        uses: github/codeql-action/init@0e150e40762c1253b364a04b0fc9f2cc14effff2 # v4
         with:
           languages: actions
           queries: security-and-quality
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@164c32a61e8b00fcca148eabf7da96803679a164 # v4
+        uses: github/codeql-action/analyze@0e150e40762c1253b364a04b0fc9f2cc14effff2 # v4
         with:
           category: "/language:actions"
 
