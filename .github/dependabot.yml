@@ -1,6 +1,17 @@
 version: 2
 updates:
-  # GitHub Actions - minor and patch updates (grouped, auto-mergeable)
+  # GitHub Actions
+  # Single entry per (ecosystem, directory) — Dependabot rejects two entries that
+  # share `directory: "/"` for the same ecosystem ("overlapping directories"),
+  # which silently skips the whole github-actions ecosystem. Minor/patch are
+  # grouped below; major bumps don't match those groups (update-types limits each
+  # group) so they surface as individual PRs.
+  #
+  # Conditional handling lives in .github/workflows/dependabot-auto-merge.yml, not
+  # here: entry-level labels can't be conditional, so that workflow reads the real
+  # update-type via dependabot/fetch-metadata and applies deps:major +
+  # status:needs-review to majors. github-actions updates are never auto-merged
+  # (GITHUB_TOKEN can't modify workflow files), so no `automerge` label is set here.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -8,7 +19,7 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "Etc/UTC"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 5
     rebase-strategy: "auto"
     groups:
       # Security-related actions - prioritize these
@@ -35,31 +46,6 @@ updates:
     labels:
       - "deps:all"
       - "deps:github-actions"
-      - "automerge"
     commit-message:
       prefix: "chore(ci)"
       include: "scope"
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
-
-  # GitHub Actions - major updates (separate PRs, require manual review)
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
-      timezone: "Etc/UTC"
-    open-pull-requests-limit: 2
-    rebase-strategy: "auto"
-    labels:
-      - "deps:all"
-      - "deps:github-actions"
-      - "deps:major"
-    commit-message:
-      prefix: "chore(ci)"
-      include: "scope"
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
