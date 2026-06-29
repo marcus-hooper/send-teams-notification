@@ -65,7 +65,7 @@ jobs:
           queries: security-and-quality
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@a16f4a497336b68eeff8ef72868ea4bab1c672bb # v4
+        uses: github/codeql-action/analyze@9cea5827c668a1fe7165dbce6e80c3f9cf3f83ac # v4
         with:
           category: "/language:actions"
 
