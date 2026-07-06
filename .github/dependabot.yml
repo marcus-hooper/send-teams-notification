@@ -3,9 +3,13 @@ updates:
   # GitHub Actions
   # Single entry per (ecosystem, directory) — Dependabot rejects two entries that
   # share `directory: "/"` for the same ecosystem ("overlapping directories"),
-  # which silently skips the whole github-actions ecosystem. Minor/patch are
-  # grouped below; major bumps don't match those groups (update-types limits each
-  # group) so they surface as individual PRs.
+  # which silently skips the whole github-actions ecosystem. The ci-actions group
+  # limits itself to minor/patch, so major bumps there surface as individual PRs.
+  # The security-actions group intentionally has NO update-types filter: it covers
+  # github/codeql-action, whose init/analyze/upload-sarif sub-actions are versioned
+  # together and MUST bump in one PR. A digest or major bump that escaped the group
+  # would open per-sub-action PRs and desync the codeql-action versions, breaking
+  # CodeQL ("Loaded a configuration file for version 'X', but running version 'Y'").
   #
   # Conditional handling lives in .github/workflows/dependabot-auto-merge.yml, not
   # here: entry-level labels can't be conditional, so that workflow reads the real
@@ -29,9 +33,8 @@ updates:
           - "github/codeql-action"
           - "step-security/*"
           - "gitleaks/*"
-        update-types:
-          - "minor"
-          - "patch"
+        # No update-types filter: all update types (including digest and major) stay
+        # grouped so codeql-action sub-actions always bump together in a single PR.
       # CI/CD actions
       ci-actions:
         patterns:
