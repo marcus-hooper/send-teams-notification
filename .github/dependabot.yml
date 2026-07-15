@@ -30,7 +30,7 @@ updates:
       security-actions:
         patterns:
           - "ossf/*"
-          - "github/codeql-action"
+          - "github/codeql-action*"
           - "step-security/*"
           - "gitleaks/*"
         # No update-types filter: all update types (including digest and major) stay
