@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Cross-platform CI test no longer hangs on Windows runners. A step-level
+  `if: runner.os == 'Linux'` gates only an action's main entrypoint, so
+  harden-runner's pre/post steps still installed its egress-blocking agent on
+  the Windows and macOS matrix legs, which could starve the runner's own log
+  and job-status upload endpoints. Removed harden-runner from the
+  cross-platform job (it touches no secrets) and lowered its timeout to 5
+  minutes.
+
 ## [1.1.0] - 2026-01-19
 
 ### Added

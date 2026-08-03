@@ -271,18 +271,17 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+    # Deliberately low: this job only imports the module and calls two functions
+    # (~30s of real work). A wedged hosted runner burns the timeout plus a
+    # 5-minute force-kill grace period, so keep the ceiling tight.
+    timeout-minutes: 5
 
     steps:
-      - name: Harden Runner
-        if: runner.os == 'Linux'
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
-        with:
-          egress-policy: block
-          allowed-endpoints: >
-            api.github.com:443
-            github.com:443
-
+      # No harden-runner here. A step-level `if:` gates only the action's main
+      # entrypoint -- its pre/post steps run on every platform -- so a
+      # Linux-only condition still installs the egress-blocking agent on the
+      # windows and macos legs of this matrix. This job touches no secrets and
+      # makes no network calls beyond checkout, so there is nothing to harden.
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
